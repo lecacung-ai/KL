@@ -61,12 +61,19 @@ services:
             - ./frontend/test-results
     # TODO: remove once coverage is done locally
     volumes:
+      - ./backend/app/api:/app/backend/app/api
+      - ./backend/app/core:/app/backend/app/core
+      - ./backend/app/models.py:/app/backend/app/models.py
+      - ./backend/app/main.py:/app/backend/app/main.py
+      - ./backend/app/frontend:/app/backend/app/frontend
+      - ./backend/uploads:/app/uploads
       - ./backend/htmlcov:/app/backend/htmlcov
     environment:
       FASTAPI_ENV: "development"
       SMTP_HOST: "mailpit"
       SMTP_PORT: "1025"
       SMTP_TLS: "false"
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
 
   mailpit:
     image: axllent/mailpit

@@ -131,3 +131,41 @@ class TokenPayload(SQLModel):
 class NewPassword(SQLModel):
     token: str
     new_password: str = Field(min_length=8, max_length=128)
+
+
+# Dataset Models for Module 2: Quản lý kho dữ liệu kinh doanh
+class DatasetBase(SQLModel):
+    filename: str = Field(min_length=1, max_length=255)
+    file_type: str = Field(default="csv", max_length=50)
+    size_bytes: int = Field(default=0)
+    row_count: int = Field(default=0)
+    column_count: int = Field(default=0)
+    version: int = Field(default=1)
+    status: str = Field(default="ready", max_length=50)
+    description: str | None = Field(default=None, max_length=500)
+    schema_info: str | None = Field(default=None)
+    sample_data: str | None = Field(default=None)
+
+
+class Dataset(DatasetBase, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    created_at: datetime | None = Field(
+        default_factory=get_datetime_utc,
+        sa_type=DateTime(timezone=True),  # type: ignore
+    )
+    owner_id: uuid.UUID = Field(
+        foreign_key="user.id", nullable=False, ondelete="CASCADE"
+    )
+    owner: User | None = Relationship()
+    file_path: str = Field(max_length=500)
+
+
+class DatasetPublic(DatasetBase):
+    id: uuid.UUID
+    owner_id: uuid.UUID
+    created_at: datetime | None = None
+
+
+class DatasetsPublic(SQLModel):
+    data: list[DatasetPublic]
+    count: int

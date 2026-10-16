@@ -6,7 +6,8 @@ from app.core.config import settings
 api_router = APIRouter()
 api_router.include_router(login.router)
 api_router.include_router(users.router)
-from app.api.routes import files
+from app.api.routes import datasets, files
+api_router.include_router(datasets.router, prefix="/datasets", tags=["datasets"])
 api_router.include_router(files.router, prefix="/files", tags=["files"])
 api_router.include_router(utils.router)
 api_router.include_router(items.router)

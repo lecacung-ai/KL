@@ -21,7 +21,8 @@ dependencies = [
     "pandas",
     "openpyxl",
     "google-generativeai",
-    "python-multipart",
+    "matplotlib",
+    "seaborn",
 ]
 
 [dependency-groups]
