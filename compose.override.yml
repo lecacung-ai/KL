@@ -65,7 +65,6 @@ services:
       - ./backend/app/core:/app/backend/app/core
       - ./backend/app/models.py:/app/backend/app/models.py
       - ./backend/app/main.py:/app/backend/app/main.py
-      - ./backend/app/frontend:/app/backend/app/frontend
       - ./backend/uploads:/app/uploads
       - ./backend/htmlcov:/app/backend/htmlcov
     environment:
