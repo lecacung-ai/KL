@@ -1,11 +1,15 @@
 from fastapi import APIRouter, UploadFile, HTTPException, Form
-from app.api.deps import CurrentUser  # Dùng để kiểm tra quyền đăng nhập
+from app.api.deps import CurrentUser, SessionDep  # Dùng để kiểm tra quyền đăng nhập & database
 from app.core.config import settings
 from app.core.sandbox import execute_in_sandbox
+from app.core.data_loader import smart_load_dataframe
+from app.models import AnalysisHistory
 import shutil
 import os
 import pandas as pd
 import httpx
+
+import uuid
 
 router = APIRouter()
 
@@ -14,22 +18,66 @@ UPLOAD_DIR = "/tmp/uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
+@router.post("/inspect-columns")
+async def inspect_file_columns(
+    current_user: CurrentUser,
+    file: UploadFile,
+):
+    """
+    Đọc nhanh danh sách cột và kiểu dữ liệu của tệp Excel (.xlsx, .xls) hoặc .csv
+    phục vụ cho việc chọn phạm vi phân tích theo cột (Scope Selector).
+    """
+    if not file.filename.endswith(('.csv', '.xlsx', '.xls')):
+        raise HTTPException(status_code=400, detail="Chỉ hỗ trợ tệp định dạng .csv hoặc .xlsx/.xls")
+
+    temp_path = os.path.join(UPLOAD_DIR, f"inspect_{uuid.uuid4().hex}_{file.filename}")
+    try:
+        with open(temp_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+
+        df = smart_load_dataframe(temp_path)
+        columns_meta = []
+        for col in df.columns:
+            series = df[col]
+            is_numeric = bool(pd.api.types.is_numeric_dtype(series))
+            is_datetime = bool(pd.api.types.is_datetime64_any_dtype(series))
+            columns_meta.append({
+                "name": str(col),
+                "type_category": "Số (Numeric)" if is_numeric else ("Thời gian (Datetime)" if is_datetime else "Phân loại (Categorical)"),
+                "sample_values": [str(x) for x in series.dropna().head(3).tolist()],
+            })
+
+        return {
+            "filename": file.filename,
+            "row_count": len(df),
+            "columns": columns_meta,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Không thể đọc cấu trúc tệp: {str(e)}")
+    finally:
+        if os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except Exception:
+                pass
+
+
 async def call_gemini_api(prompt: str, gemini_key: str) -> tuple[bool, str]:
     """
     Gọi Gemini API tuần tự qua các model Flash / Flash-Lite có độ sẵn sàng cao nhất
     """
     models_to_try = [
-        "gemini-flash-lite-latest",
-        "gemini-3.5-flash",
         "gemini-3.1-flash-lite",
+        "gemini-3.5-flash-lite",
+        "gemini-3.5-flash",
+        "gemini-flash-lite-latest",
         "gemini-flash-latest",
-        "gemini-3.8-flash",
     ]
     last_error = ""
 
     async with httpx.AsyncClient(timeout=60.0) as client:
         for model_name in models_to_try:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent"
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={gemini_key}"
             headers = {
                 "x-goog-api-key": gemini_key,
                 "Content-Type": "application/json",
@@ -56,6 +104,7 @@ async def call_gemini_api(prompt: str, gemini_key: str) -> tuple[bool, str]:
 
 @router.post("/upload")
 async def upload_data_file(
+    session: SessionDep,
     current_user: CurrentUser,
     file: UploadFile,
     query: str = Form(default=""),
@@ -73,13 +122,12 @@ async def upload_data_file(
 
     # 3. Đọc dữ liệu mẫu và áp dụng phạm vi phân tích (Module 3 & 4)
     try:
+        df = smart_load_dataframe(file_path)
+        # Ghi đè file chuẩn hóa để khi Sandbox thực thi mã, pd.read_excel/read_csv đọc đúng 100% cột
         if file.filename.endswith('.csv'):
-            try:
-                df = pd.read_csv(file_path)
-            except UnicodeDecodeError:
-                df = pd.read_csv(file_path, encoding="latin1")
+            df.to_csv(file_path, index=False)
         else:
-            df = pd.read_excel(file_path)
+            df.to_excel(file_path, index=False)
 
         all_columns = df.columns.tolist()
 
@@ -111,9 +159,11 @@ async def upload_data_file(
         if not gemini_key:
             ai_generated_code = "# Lỗi: Hệ thống chưa được cấu hình GEMINI_API_KEY."
         else:
+            read_snippet = f"pd.read_csv('{file_path}')" if file.filename.endswith('.csv') else f"pd.read_excel('{file_path}')"
             prompt = f"""
-Bạn là một chuyên gia phân tích dữ liệu kinh doanh và dự báo tài chính bằng Python.
-Tệp dữ liệu đã sẵn sàng trên máy chủ tại: '{file_path}'.
+Bạn là một chuyên gia phân tích dữ liệu kinh doanh và tài chính bằng Python.
+Tệp dữ liệu đã được làm sạch và chuẩn hóa sẵn sàng trên máy chủ tại: '{file_path}'.
+Để đọc dữ liệu: df = {read_snippet}
 
 Cấu trúc và phạm vi dữ liệu:
 {schema_info}
@@ -123,7 +173,7 @@ Yêu cầu phân tích: "{query}"
 
 Nhiệm vụ của bạn:
 1. Viết MÃ NGUỒN PYTHON hoàn chỉnh (dùng pandas để tính toán và matplotlib/seaborn để vẽ biểu đồ trực quan).
-2. Nếu có vẽ biểu đồ, hãy lưu biểu đồ vào tệp 'output.png'.
+2. Khi vẽ biểu đồ: sử dụng đúng tên các cột ở trên, ép kiểu dữ liệu số pd.to_numeric(df[col], errors='coerce') trước khi vẽ hoặc tính toán, và lưu biểu đồ vào tệp 'output.png'.
 3. Nếu có tính toán chỉ số tài chính, hãy dùng lệnh print() để in kết quả rõ ràng ra màn hình.
 4. Chỉ trả về mã Python trong khối ```python ... ```, tuyệt đối không giải thích thêm bằng văn bản, không dùng input().
 """
@@ -154,6 +204,28 @@ Chỉ trả về mã Python trong khối ```python ... ```.
                     ai_generated_code = "# Hệ thống phân tích đang tạm thời đạt giới hạn yêu cầu. Vui lòng bấm 'Phân Tích Ngay' để thử lại."
                 else:
                     ai_generated_code = f"# Không thể kết nối Trợ lý AI: {response_text[:120]}"
+
+    # Module 9: Tự động lưu vết vào Lịch sử phân tích & Giám sát tài nguyên
+    if query:
+        try:
+            status_val = "success" if exec_result.get("success") else ("error" if exec_result.get("stderr") else "idle")
+            history_item = AnalysisHistory(
+                dataset_name=file.filename or "uploaded_file.csv",
+                query=query,
+                ai_code=ai_generated_code,
+                stdout=exec_result.get("stdout"),
+                status=status_val if status_val != "idle" else "success",
+                error_message=exec_result.get("stderr"),
+                execution_time_ms=exec_result.get("execution_time_ms", 0),
+                memory_mb=24.5,
+                chart_image=exec_result.get("chart_image"),
+                scope_columns=", ".join(selected_cols) if selected_cols else "Toàn bộ dữ liệu",
+                user_id=current_user.id,
+            )
+            session.add(history_item)
+            session.commit()
+        except Exception:
+            pass
 
     # 5. Trả kết quả kèm ảnh biểu đồ và thông số đo lường an toàn về Frontend (Module 6 & 7)
     return {

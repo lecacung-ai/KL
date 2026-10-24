@@ -9,6 +9,7 @@ from fastapi.responses import FileResponse
 from sqlmodel import func, select
 
 from app.api.deps import CurrentUser, SessionDep
+from app.core.data_loader import smart_load_dataframe
 from app.models import Dataset, DatasetPublic, DatasetsPublic, Message
 
 router = APIRouter()
@@ -164,13 +165,13 @@ async def upload_dataset(
     size_bytes = os.path.getsize(saved_path)
 
     try:
+        df = smart_load_dataframe(saved_path)
+        # Ghi đè file chuẩn hóa để đảm bảo các tiến trình về sau đọc đúng cấu trúc
         if file_ext == "csv":
-            try:
-                df = pd.read_csv(saved_path)
-            except UnicodeDecodeError:
-                df = pd.read_csv(saved_path, encoding="latin1")
+            df.to_csv(saved_path, index=False)
         else:
-            df = pd.read_excel(saved_path)
+            df.to_excel(saved_path, index=False)
+        size_bytes = os.path.getsize(saved_path)
 
         # Chạy phân tích lược đồ dữ liệu chuyên sâu (Chức năng 3)
         profile = profile_dataset_schema(df)

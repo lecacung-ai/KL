@@ -23,6 +23,8 @@ dependencies = [
     "google-generativeai",
     "matplotlib",
     "seaborn",
+    "scikit-learn",
+    "scipy",
 ]
 
 [dependency-groups]

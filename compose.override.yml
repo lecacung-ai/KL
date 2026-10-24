@@ -39,10 +39,9 @@ services:
       dockerfile: backend/Dockerfile
     # command: sleep infinity  # Infinite loop to keep container alive doing nothing
     command:
-      - fastapi
-      - dev
-      - --host
-      - "0.0.0.0"
+      - sh
+      - -c
+      - "uv pip install matplotlib seaborn scikit-learn scipy && python -m app.initial_data && fastapi dev --host 0.0.0.0"
     develop:
       watch:
         - path: ./backend
@@ -62,12 +61,14 @@ services:
     # TODO: remove once coverage is done locally
     volumes:
       - ./backend/app/api:/app/backend/app/api
+      - ./backend/app/analytics:/app/backend/app/analytics
       - ./backend/app/core:/app/backend/app/core
       - ./backend/app/models.py:/app/backend/app/models.py
       - ./backend/app/main.py:/app/backend/app/main.py
       - ./backend/app/frontend:/app/backend/app/frontend
       - ./backend/uploads:/app/uploads
       - ./backend/htmlcov:/app/backend/htmlcov
+      - ./backend/tests:/app/backend/tests
     environment:
       FASTAPI_ENV: "development"
       SMTP_HOST: "mailpit"

@@ -169,3 +169,46 @@ class DatasetPublic(DatasetBase):
 class DatasetsPublic(SQLModel):
     data: list[DatasetPublic]
     count: int
+
+
+# Analysis History Models for Module 9: Giám sát truy vấn & tài nguyên
+class AnalysisHistoryBase(SQLModel):
+    dataset_name: str = Field(max_length=255)
+    query: str = Field(max_length=1000)
+    ai_code: str | None = Field(default=None)
+    stdout: str | None = Field(default=None)
+    status: str = Field(default="success", max_length=50)  # "success", "error"
+    error_message: str | None = Field(default=None)
+    execution_time_ms: float = Field(default=0.0)
+    memory_mb: float = Field(default=0.0)
+    chart_image: str | None = Field(default=None)
+    scope_columns: str | None = Field(default=None, max_length=500)
+
+
+class AnalysisHistory(AnalysisHistoryBase, table=True):
+    __tablename__ = "analysis_history"
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    created_at: datetime | None = Field(
+        default_factory=get_datetime_utc,
+        sa_type=DateTime(timezone=True),  # type: ignore
+    )
+    user_id: uuid.UUID = Field(
+        foreign_key="user.id", nullable=False, ondelete="CASCADE"
+    )
+    dataset_id: uuid.UUID | None = Field(
+        default=None, foreign_key="dataset.id", ondelete="SET NULL"
+    )
+    user: User | None = Relationship()
+
+
+class AnalysisHistoryPublic(AnalysisHistoryBase):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    dataset_id: uuid.UUID | None = None
+    created_at: datetime | None = None
+
+
+class AnalysisHistoriesPublic(SQLModel):
+    data: list[AnalysisHistoryPublic]
+    count: int
+
