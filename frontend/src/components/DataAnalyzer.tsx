@@ -17,6 +17,8 @@ import {
   Download,
   CheckCircle2,
   ShieldCheck,
+  Loader2,
+  RotateCcw,
 } from "lucide-react"
 import { toast } from "sonner"
 import { Link } from "@tanstack/react-router"
@@ -63,6 +65,7 @@ export default function DataAnalyzer() {
   // Scope selection state (Module 4)
   const [availableColumns, setAvailableColumns] = useState<ColumnMetaSimple[]>([])
   const [selectedScopeColumns, setSelectedScopeColumns] = useState<string[]>([])
+  const [isInspecting, setIsInspecting] = useState(false)
 
   // Result state (Module 5, 6, 7)
   const [result, setResult] = useState<AnalysisResult | null>(null)
@@ -100,7 +103,8 @@ export default function DataAnalyzer() {
         }
         if (cols.length > 0) {
           setAvailableColumns(cols)
-          setSelectedScopeColumns(cols.map((c) => c.name))
+          // Mặc định: Không chọn cụ thể = phân tích toàn bộ tất cả các cột
+          setSelectedScopeColumns([])
           return
         }
       }
@@ -111,7 +115,7 @@ export default function DataAnalyzer() {
           const keys = Object.keys(samples[0])
           const cols = keys.map((k) => ({ name: k }))
           setAvailableColumns(cols)
-          setSelectedScopeColumns(keys)
+          setSelectedScopeColumns([])
           return
         }
       }
@@ -134,44 +138,89 @@ export default function DataAnalyzer() {
     }
   }
 
-  const handleLocalFileUpload = (uploadedFile: File) => {
+  // Tự động quét cấu trúc cột cho cả Excel (.xlsx, .xls) và CSV thông qua smart loader
+  const handleLocalFileUpload = async (uploadedFile: File) => {
     setFile(uploadedFile)
     setSelectedDatasetId("")
+    setAvailableColumns([])
+    setSelectedScopeColumns([])
+    setIsInspecting(true)
 
-    if (uploadedFile.name.endsWith(".csv")) {
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        const text = e.target?.result as string
-        if (text) {
-          const firstLine = text.split("\n")[0]
-          const delimiter = firstLine.includes(";") ? ";" : (firstLine.includes("\t") ? "\t" : ",")
-          const cols = firstLine.split(delimiter).map((c) => c.trim().replace(/^["']|["']$/g, "")).filter(Boolean)
-          const colsObj = cols.map((c) => ({ name: c }))
-          setAvailableColumns(colsObj)
-          setSelectedScopeColumns(cols)
-        }
+    try {
+      const token = sessionStorage.getItem("access_token")
+      const formData = new FormData()
+      formData.append("file", uploadedFile)
+
+      const response = await axios.post("http://localhost:8000/api/v1/files/inspect-columns", formData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data",
+        },
+      })
+
+      if (response.data?.columns && Array.isArray(response.data.columns)) {
+        const cols: ColumnMetaSimple[] = response.data.columns.map((c: any) => ({
+          name: c.name,
+          typeCategory: c.type_category,
+        }))
+        setAvailableColumns(cols)
+        setSelectedScopeColumns([]) // Mặc định không tick cột cụ thể = Phân tích toàn bộ dữ liệu
+        toast.success(`Đã nhận diện ${cols.length} cột từ tệp "${uploadedFile.name}"! Mặc định phân tích toàn bộ các cột.`)
       }
-      reader.readAsText(uploadedFile.slice(0, 4096))
-    } else {
-      setAvailableColumns([])
-      setSelectedScopeColumns([])
+    } catch (err: any) {
+      console.warn("Inspect API error, falling back to local csv reader if applicable:", err)
+      if (uploadedFile.name.endsWith(".csv")) {
+        const reader = new FileReader()
+        reader.onload = (e) => {
+          const text = e.target?.result as string
+          if (text) {
+            const firstLine = text.split("\n")[0]
+            const delimiter = firstLine.includes(";") ? ";" : (firstLine.includes("\t") ? "\t" : ",")
+            const cols = firstLine.split(delimiter).map((c) => c.trim().replace(/^["']|["']$/g, "")).filter(Boolean)
+            const colsObj = cols.map((c) => ({ name: c }))
+            setAvailableColumns(colsObj)
+            setSelectedScopeColumns([])
+          }
+        }
+        reader.readAsText(uploadedFile.slice(0, 4096))
+      } else {
+        toast.error("Không thể đọc danh sách cột từ tệp Excel. Vui lòng thử lại.")
+      }
+    } finally {
+      setIsInspecting(false)
     }
   }
 
+  // Toggle chọn / bỏ chọn từng cột
   const toggleColumnScope = (colName: string) => {
+    // Nếu đang ở trạng thái mặc định (toàn bộ cột, mảng rỗng)
+    // Người dùng bấm vào 1 cột tức là họ muốn CHỈ phân tích cột này
+    if (selectedScopeColumns.length === 0) {
+      setSelectedScopeColumns([colName])
+      return
+    }
+
     if (selectedScopeColumns.includes(colName)) {
-      if (selectedScopeColumns.length === 1) {
-        toast.warning("Cần chọn ít nhất 1 cột trong phạm vi phân tích")
-        return
+      const next = selectedScopeColumns.filter((c) => c !== colName)
+      setSelectedScopeColumns(next)
+      if (next.length === 0) {
+        toast.info("Đã bỏ chọn tất cả: Sẽ phân tích TOÀN BỘ các cột dữ liệu (Mặc định).")
       }
-      setSelectedScopeColumns(selectedScopeColumns.filter((c) => c !== colName))
     } else {
       setSelectedScopeColumns([...selectedScopeColumns, colName])
     }
   }
 
+  // Chọn tất cả các cột
   const selectAllScope = () => {
     setSelectedScopeColumns(availableColumns.map((c) => c.name))
+    toast.success(`Đã chọn toàn bộ ${availableColumns.length} cột.`)
+  }
+
+  // Đặt lại về mặc định (Toàn bộ dữ liệu)
+  const resetToDefaultScope = () => {
+    setSelectedScopeColumns([])
+    toast.info("Đã chuyển về mặc định: Phân tích toàn bộ dữ liệu.")
   }
 
   const handleAnalyze = async () => {
@@ -195,7 +244,9 @@ export default function DataAnalyzer() {
     formData.append("query", query)
 
     // Module 4: Gửi phạm vi cột chỉ định cho AI
-    if (selectedScopeColumns.length > 0) {
+    // Nếu người dùng chọn một tập hợp cột cụ thể (khác toàn bộ), gửi scope_columns
+    // Nếu không chọn cột nào (hoặc chọn tất cả), không gửi scope_columns để AI phân tích toàn bộ dữ liệu
+    if (selectedScopeColumns.length > 0 && selectedScopeColumns.length < availableColumns.length) {
       formData.append("scope_columns", selectedScopeColumns.join(","))
     }
 
@@ -391,10 +442,41 @@ export default function DataAnalyzer() {
         </div>
 
         {/* Step 2 (Module 4): Chọn phạm vi phân tích theo cột */}
-        {availableColumns.length > 0 && (
+        {availableColumns.length === 0 ? (
+          <div className="space-y-3 rounded-xl border border-dashed bg-muted/10 p-4 transition-all">
+            <div className="flex items-center gap-3">
+              <div className="flex size-8 items-center justify-center rounded-lg bg-muted text-muted-foreground shrink-0">
+                {isInspecting ? (
+                  <Loader2 className="size-4 animate-spin text-blue-500" />
+                ) : (
+                  <SlidersHorizontal className="size-4" />
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="flex size-5 items-center justify-center rounded-md bg-blue-600/10 text-blue-600 dark:bg-blue-400/10 dark:text-blue-400 text-[11px] font-black shrink-0">2</span>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-2">
+                    Phạm Vi Dữ Liệu Phân Tích (Chọn Cột)
+                    {isInspecting && (
+                      <Badge variant="outline" className="text-[10px] bg-blue-50 text-blue-600 border-blue-200 animate-pulse">
+                        Đang quét cấu trúc cột...
+                      </Badge>
+                    )}
+                  </h4>
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                  {isInspecting
+                    ? "Đang tự động quét và phân loại các cột trong tệp..."
+                    : "Chưa có nguồn dữ liệu. Hãy chọn tệp trong Kho dữ liệu hoặc tải tệp Excel/CSV lên ở Bước 1. Hệ thống sẽ hiển thị danh sách cột để bạn chọn lựa (mặc định phân tích toàn bộ nếu không chọn cụ thể)."}
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : (
           <div className="space-y-3 rounded-xl border bg-muted/20 p-4 transition-all">
-            <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-3">
               <div className="flex items-center gap-2">
+                <span className="flex size-5 items-center justify-center rounded-md bg-blue-600/10 text-blue-600 dark:bg-blue-400/10 dark:text-blue-400 text-[11px] font-black">2</span>
                 <div className="flex size-7 items-center justify-center rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400">
                   <SlidersHorizontal className="size-4" />
                 </div>
@@ -403,45 +485,79 @@ export default function DataAnalyzer() {
                     Phạm Vi Dữ Liệu Phân Tích (Chọn Cột)
                   </h4>
                   <p className="text-[11px] text-muted-foreground">
-                    Thu hẹp ngữ cảnh để hệ thống tập trung phân tích chính xác các chỉ số tài chính bạn quan tâm.
+                    Bấm chọn các cột bạn cần AI tập trung phân tích. Mặc định sẽ phân tích trên toàn bộ các cột nếu không chọn cụ thể.
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 text-xs font-semibold">
-                  Đã chọn: {selectedScopeColumns.length} / {availableColumns.length} cột
-                </Badge>
+              <div className="flex flex-wrap items-center gap-2">
+                {selectedScopeColumns.length === 0 ? (
+                  <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-400 text-xs font-semibold gap-1 py-1">
+                    <CheckCircle2 className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+                    Mặc định: Toàn bộ {availableColumns.length} cột
+                  </Badge>
+                ) : selectedScopeColumns.length === availableColumns.length ? (
+                  <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-400 text-xs font-semibold gap-1 py-1">
+                    <CheckCircle2 className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+                    Đã chọn tất cả ({availableColumns.length} cột)
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300 dark:bg-blue-950/60 dark:text-blue-300 text-xs font-semibold gap-1 py-1">
+                    <SlidersHorizontal className="size-3.5 text-blue-500" />
+                    Đã chọn: {selectedScopeColumns.length} / {availableColumns.length} cột
+                  </Badge>
+                )}
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={selectAllScope}
+                  className="h-7 text-xs px-2.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950 font-medium"
+                >
+                  Chọn tất cả
+                </Button>
+
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
-                  onClick={selectAllScope}
-                  className="h-7 text-xs px-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950 font-medium"
+                  onClick={resetToDefaultScope}
+                  className="h-7 text-xs px-2.5 text-muted-foreground hover:text-foreground hover:bg-muted font-medium gap-1"
                 >
-                  Chọn tất cả
+                  <RotateCcw className="size-3" /> Mặc định (Tất cả cột)
                 </Button>
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-2 pt-1">
+            <div className="flex flex-wrap gap-2 pt-1 max-h-48 overflow-y-auto">
               {availableColumns.map((col) => {
+                const isExplicitlyFiltered = selectedScopeColumns.length > 0
                 const isSelected = selectedScopeColumns.includes(col.name)
+                const isDefaultActive = !isExplicitlyFiltered
+
                 return (
                   <button
                     key={col.name}
                     type="button"
                     onClick={() => toggleColumnScope(col.name)}
+                    title={isDefaultActive ? "Đang áp dụng trong toàn bộ dữ liệu. Bấm để chỉ chọn cột này." : (isSelected ? "Bấm để bỏ chọn cột này." : "Bấm để thêm cột này.")}
                     className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${
-                      isSelected
-                        ? "border-blue-500 bg-blue-50/80 text-blue-800 dark:bg-blue-950/80 dark:text-blue-300 shadow-sm ring-1 ring-blue-500/20"
-                        : "border-border bg-card text-muted-foreground hover:border-muted-foreground/40 hover:text-foreground opacity-60"
+                      isDefaultActive
+                        ? "border-border/80 bg-card hover:border-blue-400 hover:bg-blue-50/30 dark:hover:bg-blue-950/30 text-foreground"
+                        : isSelected
+                        ? "border-blue-500 bg-blue-50/90 text-blue-900 dark:bg-blue-950/80 dark:text-blue-200 shadow-sm ring-1 ring-blue-500/20"
+                        : "border-border/50 bg-muted/20 text-muted-foreground/60 hover:border-muted-foreground/40 hover:text-foreground opacity-50"
                     }`}
                   >
                     <div className={`size-3.5 rounded flex items-center justify-center border text-[9px] font-bold ${
-                      isSelected ? "border-blue-600 bg-blue-600 text-white" : "border-muted-foreground"
+                      isDefaultActive
+                        ? "border-emerald-500 bg-emerald-50 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400"
+                        : isSelected
+                        ? "border-blue-600 bg-blue-600 text-white"
+                        : "border-muted-foreground/40"
                     }`}>
-                      {isSelected && "✓"}
+                      {(isDefaultActive || isSelected) && "✓"}
                     </div>
                     <span className="font-mono">{col.name}</span>
                     {col.typeCategory && (
@@ -453,6 +569,10 @@ export default function DataAnalyzer() {
                 )
               })}
             </div>
+
+            <p className="text-[11px] text-muted-foreground flex items-center gap-1.5 pt-1 border-t">
+              <span>💡 <strong>Quy tắc phạm vi:</strong> Bấm vào từng cột để chọn chỉ phân tích cột đó. Nếu không chọn cột nào (hoặc bấm nút "Mặc định"), AI sẽ phân tích trên toàn bộ bảng dữ liệu.</span>
+            </p>
           </div>
         )}
 
@@ -460,7 +580,7 @@ export default function DataAnalyzer() {
         <div className="space-y-2.5">
           <div className="flex items-center gap-2">
             <span className="flex size-5 items-center justify-center rounded-md bg-blue-600/10 text-blue-600 dark:bg-blue-400/10 dark:text-blue-400 text-[11px] font-black">
-              {availableColumns.length > 0 ? "3" : "2"}
+              3
             </span>
             <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Yêu Cầu Nghiệp Vụ Cần Phân Tích</span>
           </div>
@@ -535,11 +655,18 @@ export default function DataAnalyzer() {
             </div>
 
             {/* Phạm vi áp dụng thực tế */}
-            {result.selected_scope && result.selected_scope.length > 0 && (
+            {result.selected_scope && result.selected_scope.length > 0 ? (
               <div className="flex items-center gap-2 text-xs p-3 rounded-lg bg-blue-50/70 dark:bg-blue-950/40 text-blue-900 dark:text-blue-300 border border-blue-200 dark:border-blue-900">
                 <SlidersHorizontal className="size-4 shrink-0 text-blue-600 dark:text-blue-400" />
                 <span>
                   Phạm vi đã áp dụng: <strong>{result.selected_scope.length} cột</strong> ({result.selected_scope.join(", ")})
+                </span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-xs p-3 rounded-lg bg-emerald-50/70 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900">
+                <CheckCircle2 className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                <span>
+                  Phạm vi đã áp dụng: <strong>Toàn bộ dữ liệu</strong> ({result.columns?.length || 0} cột)
                 </span>
               </div>
             )}

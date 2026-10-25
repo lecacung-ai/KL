@@ -17,6 +17,8 @@ import { Route as SignupRouteImport } from './routes/signup'
 import { Route as LayoutIndexRouteImport } from './routes/_layout/index'
 import { Route as LayoutAdminRouteImport } from './routes/_layout/admin'
 import { Route as LayoutDatasetsRouteImport } from './routes/_layout/datasets'
+import { Route as LayoutForecastRouteImport } from './routes/_layout/forecast'
+import { Route as LayoutHistoryRouteImport } from './routes/_layout/history'
 import { Route as LayoutItemsRouteImport } from './routes/_layout/items'
 import { Route as LayoutSettingsRouteImport } from './routes/_layout/settings'
 
@@ -59,6 +61,16 @@ const LayoutDatasetsRoute = LayoutDatasetsRouteImport.update({
   path: '/datasets',
   getParentRoute: () => LayoutRoute,
 } as any)
+const LayoutForecastRoute = LayoutForecastRouteImport.update({
+  id: '/forecast',
+  path: '/forecast',
+  getParentRoute: () => LayoutRoute,
+} as any)
+const LayoutHistoryRoute = LayoutHistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
+  getParentRoute: () => LayoutRoute,
+} as any)
 const LayoutItemsRoute = LayoutItemsRouteImport.update({
   id: '/items',
   path: '/items',
@@ -78,6 +90,8 @@ export interface FileRoutesByFullPath {
   '/signup': typeof SignupRoute
   '/admin': typeof LayoutAdminRoute
   '/datasets': typeof LayoutDatasetsRoute
+  '/forecast': typeof LayoutForecastRoute
+  '/history': typeof LayoutHistoryRoute
   '/items': typeof LayoutItemsRoute
   '/settings': typeof LayoutSettingsRoute
 }
@@ -88,6 +102,8 @@ export interface FileRoutesByTo {
   '/signup': typeof SignupRoute
   '/admin': typeof LayoutAdminRoute
   '/datasets': typeof LayoutDatasetsRoute
+  '/forecast': typeof LayoutForecastRoute
+  '/history': typeof LayoutHistoryRoute
   '/items': typeof LayoutItemsRoute
   '/settings': typeof LayoutSettingsRoute
   '/': typeof LayoutIndexRoute
@@ -101,6 +117,8 @@ export interface FileRoutesById {
   '/signup': typeof SignupRoute
   '/_layout/admin': typeof LayoutAdminRoute
   '/_layout/datasets': typeof LayoutDatasetsRoute
+  '/_layout/forecast': typeof LayoutForecastRoute
+  '/_layout/history': typeof LayoutHistoryRoute
   '/_layout/items': typeof LayoutItemsRoute
   '/_layout/settings': typeof LayoutSettingsRoute
   '/_layout/': typeof LayoutIndexRoute
@@ -115,6 +133,8 @@ export interface FileRouteTypes {
     | '/signup'
     | '/admin'
     | '/datasets'
+    | '/forecast'
+    | '/history'
     | '/items'
     | '/settings'
   fileRoutesByTo: FileRoutesByTo
@@ -125,6 +145,8 @@ export interface FileRouteTypes {
     | '/signup'
     | '/admin'
     | '/datasets'
+    | '/forecast'
+    | '/history'
     | '/items'
     | '/settings'
     | '/'
@@ -137,6 +159,8 @@ export interface FileRouteTypes {
     | '/signup'
     | '/_layout/admin'
     | '/_layout/datasets'
+    | '/_layout/forecast'
+    | '/_layout/history'
     | '/_layout/items'
     | '/_layout/settings'
     | '/_layout/'
@@ -208,6 +232,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutDatasetsRouteImport
       parentRoute: typeof LayoutRoute
     }
+    '/_layout/forecast': {
+      id: '/_layout/forecast'
+      path: '/forecast'
+      fullPath: '/forecast'
+      preLoaderRoute: typeof LayoutForecastRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/history': {
+      id: '/_layout/history'
+      path: '/history'
+      fullPath: '/history'
+      preLoaderRoute: typeof LayoutHistoryRouteImport
+      parentRoute: typeof LayoutRoute
+    }
     '/_layout/items': {
       id: '/_layout/items'
       path: '/items'
@@ -228,6 +266,8 @@ declare module '@tanstack/react-router' {
 interface LayoutRouteChildren {
   LayoutAdminRoute: typeof LayoutAdminRoute
   LayoutDatasetsRoute: typeof LayoutDatasetsRoute
+  LayoutForecastRoute: typeof LayoutForecastRoute
+  LayoutHistoryRoute: typeof LayoutHistoryRoute
   LayoutItemsRoute: typeof LayoutItemsRoute
   LayoutSettingsRoute: typeof LayoutSettingsRoute
   LayoutIndexRoute: typeof LayoutIndexRoute
@@ -236,6 +276,8 @@ interface LayoutRouteChildren {
 const LayoutRouteChildren: LayoutRouteChildren = {
   LayoutAdminRoute: LayoutAdminRoute,
   LayoutDatasetsRoute: LayoutDatasetsRoute,
+  LayoutForecastRoute: LayoutForecastRoute,
+  LayoutHistoryRoute: LayoutHistoryRoute,
   LayoutItemsRoute: LayoutItemsRoute,
   LayoutSettingsRoute: LayoutSettingsRoute,
   LayoutIndexRoute: LayoutIndexRoute,

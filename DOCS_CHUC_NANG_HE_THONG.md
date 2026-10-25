@@ -15,11 +15,11 @@
 | **5** | Sinh & tự hiệu chỉnh mã phân tích (Pandas/Matplotlib, Retry sửa lỗi) | **0.50** | 100% | ✅ Đã hoàn thành |
 | **6** | Thực thi mã an toàn (Sandbox cách ly, giới hạn CPU/RAM/Timeout) | **0.50** | 100% | ✅ Đã hoàn thành |
 | **7** | Quản lý kết quả phân tích (Hiển thị biểu đồ/bảng, xuất báo cáo) | **0.25** | 100% | ✅ Đã hoàn thành |
-| **8** | Dự báo tài chính doanh nghiệp (Dự báo doanh thu, độ tin cậy/sai số) | **0.25** | 20% | 🔴 Cần xây dựng |
-| **9** | Giám sát truy vấn & tài nguyên (Lịch sử câu hỏi, đo lường sandbox) | **0.25** | 10% | 🔴 Cần xây dựng |
-| **10**| Tích hợp thuật toán Machine Learning / Phân tích định lượng | **1.00** | 20% | 🔴 Cần xây dựng |
-| **11**| Kiểm thử và triển khai hệ thống (Docker Compose, Unit/E2E Test) | **0.75** | 80% | 🟢 Đã có khung Docker |
-| **TỔNG**| **TOÀN BỘ HỆ THỐNG** | **5.00** | **~70%** | 🚀 Đột phá toàn diện |
+| **8** | Dự báo tài chính doanh nghiệp (Dự báo doanh thu, độ tin cậy/sai số) | **0.25** | 100% | ✅ Đã hoàn thành |
+| **9** | Giám sát truy vấn & tài nguyên (Lịch sử câu hỏi, đo lường sandbox) | **0.25** | 100% | ✅ Đã hoàn thành |
+| **10**| Tích hợp thuật toán Machine Learning / Phân tích định lượng | **1.00** | 100% | ✅ Đã hoàn thành |
+| **11**| Kiểm thử và triển khai hệ thống (Docker Compose, Unit/E2E Test) | **0.75** | 100% | ✅ Đã hoàn thành |
+| **TỔNG**| **TOÀN BỘ HỆ THỐNG** | **5.00** | **100%** | 🏆 Hoàn thiện toàn diện |
 
 ---
 
@@ -221,9 +221,9 @@ for attempt in range(max_retries):
     - Hiển thị các ô Card: Sai số MAE, Độ phù hợp R², Mức tăng trưởng dự kiến (%).
 
 #### 8.3. Checklist cần làm
-- [ ] Xây dựng endpoint API `/api/v1/forecast/predict`
-- [ ] Cài đặt thuật toán hồi quy hoặc chuỗi thời gian (Linear Regression / Exponential Smoothing / ARIMA)
-- [ ] Giao diện biểu đồ phân biệt rõ giữa dữ liệu thực tế và dữ liệu dự báo
+- [x] Xây dựng endpoint API `/api/v1/forecast/predict`
+- [x] Cài đặt thuật toán hồi quy hoặc chuỗi thời gian (Linear Regression / Exponential Smoothing / ARIMA)
+- [x] Giao diện biểu đồ phân biệt rõ giữa dữ liệu thực tế và dữ liệu dự báo
 
 ---
 
@@ -244,9 +244,9 @@ for attempt in range(max_retries):
   - Huy hiệu hiển thị: `Thời gian chạy: 1.2s` | `Bộ nhớ: 45MB`.
 
 #### 9.3. Checklist cần làm
-- [ ] Bảng cơ sở dữ liệu `analysis_history`
-- [ ] Lưu vết câu hỏi, mã Python và đường dẫn ảnh biểu đồ mỗi khi người dùng thao tác
-- [ ] Màn hình tra cứu lịch sử phân tích
+- [x] Bảng cơ sở dữ liệu `analysis_history`
+- [x] Lưu vết câu hỏi, mã Python và đường dẫn ảnh biểu đồ mỗi khi người dùng thao tác
+- [x] Màn hình tra cứu lịch sử phân tích
 
 ---
 

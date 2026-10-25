@@ -45,6 +45,37 @@ function Dashboard() {
   const totalDatasets = datasets.length
   const totalBytes = datasets.reduce((sum, d) => sum + (d.size_bytes || 0), 0)
 
+  // Điểm sức khỏe dữ liệu thực tế tính từ schema_info của các tệp đã tải lên
+  const avgHealthScore = totalDatasets > 0
+    ? Math.round(
+        datasets.reduce((acc, d) => {
+          try {
+            const profile = JSON.parse(d.schema_info || "{}")
+            return acc + (profile.health_score ?? 100)
+          } catch {
+            return acc + 100
+          }
+        }, 0) / totalDatasets
+      )
+    : 0
+
+  // Đếm tổng số cột chỉ số số học / tài chính đã nhận diện
+  const totalNumericCols = datasets.reduce((sum, d) => {
+    try {
+      const profile = JSON.parse(d.schema_info || "{}")
+      const cols = profile.columns || []
+      const numCols = cols.filter(
+        (c: any) =>
+          c.type_category?.includes("Số") ||
+          c.dtype?.includes("int") ||
+          c.dtype?.includes("float")
+      )
+      return sum + numCols.length
+    } catch {
+      return sum
+    }
+  }, 0)
+
   const formatFileSize = (bytes: number) => {
     if (bytes < 1024) return `${bytes} B`
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
@@ -80,49 +111,71 @@ function Dashboard() {
 
       {/* 4 Professional KPI Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Card 1: Doanh Thu Dự Báo */}
+        {/* Card 1: Doanh Thu Dự Báo / Trạng Thái Dự Báo */}
         <div className="rounded-xl border bg-card p-5 shadow-sm space-y-3 relative overflow-hidden group hover:border-blue-500/40 transition-all">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              Doanh Thu Kỳ Tới (Dự Báo)
+              Dự Báo Tài Chính (Kỳ Tới)
             </span>
             <div className="flex size-9 items-center justify-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400">
               <DollarSign className="size-4.5" />
             </div>
           </div>
           <div className="space-y-1">
-            <h3 className="text-2xl font-black text-foreground">3.480.000.000 ₫</h3>
-            <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-semibold">
-              <ArrowUpRight className="size-3.5" /> +14.8% <span className="text-muted-foreground font-normal">so với cùng kỳ</span>
+            <h3 className="text-2xl font-black text-foreground">
+              {totalDatasets === 0 ? "--" : "Sẵn sàng"}
+            </h3>
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
+              {totalDatasets === 0 ? (
+                <span>Chưa nạp tệp dữ liệu</span>
+              ) : (
+                <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                  <ArrowUpRight className="size-3.5" /> Khai thác từ {totalDatasets} tệp nguồn
+                </span>
+              )}
             </div>
           </div>
           <div className="w-full bg-muted/60 h-1.5 rounded-full overflow-hidden">
-            <div className="bg-blue-600 h-full rounded-full w-[78%]" />
+            <div
+              className="bg-blue-600 h-full rounded-full transition-all"
+              style={{ width: totalDatasets === 0 ? "0%" : "100%" }}
+            />
           </div>
         </div>
 
-        {/* Card 2: Dòng Tiền & Tỷ Suất Lợi Nhuận */}
+        {/* Card 2: Chỉ Số Định Lượng Đã Khai Thác */}
         <div className="rounded-xl border bg-card p-5 shadow-sm space-y-3 relative overflow-hidden group hover:border-emerald-500/40 transition-all">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              Biên Lợi Nhuận Gộp
+              Chỉ Số Định Lượng Khai Thác
             </span>
             <div className="flex size-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400">
               <TrendingUp className="size-4.5" />
             </div>
           </div>
           <div className="space-y-1">
-            <h3 className="text-2xl font-black text-foreground">36.2%</h3>
-            <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-semibold">
-              <ArrowUpRight className="size-3.5" /> +2.4% <span className="text-muted-foreground font-normal">mục tiêu 35%</span>
+            <h3 className="text-2xl font-black text-foreground">
+              {totalDatasets === 0 ? "--" : `${totalNumericCols} chỉ số`}
+            </h3>
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
+              {totalDatasets === 0 ? (
+                <span>Cần nạp báo cáo tài chính</span>
+              ) : (
+                <span className="text-emerald-600 dark:text-emerald-400">
+                  Doanh thu, chi phí, sản lượng...
+                </span>
+              )}
             </div>
           </div>
           <div className="w-full bg-muted/60 h-1.5 rounded-full overflow-hidden">
-            <div className="bg-emerald-500 h-full rounded-full w-[88%]" />
+            <div
+              className="bg-emerald-500 h-full rounded-full transition-all"
+              style={{ width: totalDatasets === 0 ? "0%" : "100%" }}
+            />
           </div>
         </div>
 
-        {/* Card 3: Dữ Liệu Đang Giám Sát */}
+        {/* Card 3: Quy Mô Kho Dữ Liệu */}
         <div className="rounded-xl border bg-card p-5 shadow-sm space-y-3 relative overflow-hidden group hover:border-indigo-500/40 transition-all">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
@@ -141,28 +194,42 @@ function Dashboard() {
             </div>
           </div>
           <div className="w-full bg-muted/60 h-1.5 rounded-full overflow-hidden">
-            <div className="bg-indigo-600 h-full rounded-full w-[65%]" />
+            <div
+              className="bg-indigo-600 h-full rounded-full transition-all"
+              style={{ width: `${Math.min(100, totalDatasets * 25)}%` }}
+            />
           </div>
         </div>
 
-        {/* Card 4: Sức Khỏe Tài Chính Doanh Nghiệp */}
+        {/* Card 4: Sức Khỏe Dữ Liệu Doanh Nghiệp */}
         <div className="rounded-xl border bg-card p-5 shadow-sm space-y-3 relative overflow-hidden group hover:border-cyan-500/40 transition-all">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              Chỉ Số Sức Khỏe Tài Chính
+              Chất Lượng Dữ Liệu Nguồn
             </span>
             <div className="flex size-9 items-center justify-center rounded-lg bg-cyan-50 text-cyan-600 dark:bg-cyan-950/60 dark:text-cyan-400">
               <Activity className="size-4.5" />
             </div>
           </div>
           <div className="space-y-1">
-            <h3 className="text-2xl font-black text-foreground">92/100</h3>
-            <div className="flex items-center gap-1.5 text-xs text-cyan-600 dark:text-cyan-400 font-semibold">
-              <span>Đạt chuẩn tín dụng A+</span>
+            <h3 className="text-2xl font-black text-foreground">
+              {totalDatasets === 0 ? "--" : `${avgHealthScore}/100`}
+            </h3>
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
+              {totalDatasets === 0 ? (
+                <span>Chưa có tệp để đánh giá</span>
+              ) : (
+                <span className="text-cyan-600 dark:text-cyan-400 font-semibold">
+                  {avgHealthScore >= 90 ? "Độ sạch dữ liệu đạt chuẩn cao" : "Cần tự động làm sạch"}
+                </span>
+              )}
             </div>
           </div>
           <div className="w-full bg-muted/60 h-1.5 rounded-full overflow-hidden">
-            <div className="bg-cyan-500 h-full rounded-full w-[92%]" />
+            <div
+              className="bg-cyan-500 h-full rounded-full transition-all"
+              style={{ width: `${avgHealthScore}%` }}
+            />
           </div>
         </div>
       </div>
@@ -175,71 +242,77 @@ function Dashboard() {
             <div>
               <h2 className="text-base font-bold text-foreground flex items-center gap-2">
                 <BarChart3 className="size-5 text-blue-600 dark:text-blue-400" />
-                Diễn Biến Doanh Thu & Chi Phí Doanh Nghiệp
+                Diễn Biến Dữ Liệu & Chỉ Số Doanh Nghiệp
               </h2>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Số liệu tổng hợp các kỳ gần nhất kèm dự báo xu hướng 2 tháng tới
+                Tổng hợp tình trạng các tệp báo cáo kinh doanh được nạp vào hệ thống
               </p>
             </div>
 
-            <div className="flex items-center gap-3 text-xs">
-              <span className="flex items-center gap-1.5 font-medium">
-                <span className="size-2.5 rounded-full bg-blue-600" /> Doanh thu thực tế
-              </span>
-              <span className="flex items-center gap-1.5 font-medium">
-                <span className="size-2.5 rounded-full bg-rose-500" /> Chi phí vận hành
-              </span>
-              <span className="flex items-center gap-1.5 font-medium">
-                <span className="size-2.5 rounded-full bg-indigo-400 border border-dashed border-indigo-600" /> Dự báo tương lai
-              </span>
-            </div>
+            {totalDatasets > 0 && (
+              <div className="flex items-center gap-3 text-xs">
+                <Link to="/forecast">
+                  <Button size="sm" variant="outline" className="gap-1.5 text-xs h-8">
+                    <TrendingUp className="size-3.5 text-primary" /> Mở Studio Dự Báo ML
+                  </Button>
+                </Link>
+              </div>
+            )}
           </div>
 
-          {/* Interactive Chart Graphic */}
-          <div className="space-y-3 pt-2">
-            <div className="grid grid-cols-7 gap-2 sm:gap-4 items-end h-52 pt-4 px-2">
-              {[
-                { month: "T1", rev: 180, exp: 90, isFuture: false },
-                { month: "T2", rev: 220, exp: 110, isFuture: false },
-                { month: "T3", rev: 310, exp: 130, isFuture: false },
-                { month: "T4", rev: 270, exp: 115, isFuture: false },
-                { month: "T5", rev: 390, exp: 160, isFuture: false },
-                { month: "T6 (Dự kiến)", rev: 430, exp: 175, isFuture: true },
-                { month: "T7 (Dự kiến)", rev: 470, exp: 190, isFuture: true },
-              ].map((item, idx) => (
-                <div key={idx} className="flex flex-col items-center gap-2 h-full justify-end group">
-                  <div className="flex items-end gap-1.5 w-full justify-center h-full">
-                    {/* Revenue Bar */}
-                    <div
-                      style={{ height: `${(item.rev / 500) * 100}%` }}
-                      className={`w-4 sm:w-6 rounded-t-md transition-all duration-300 group-hover:opacity-90 relative ${
-                        item.isFuture
-                          ? "bg-gradient-to-t from-indigo-500 to-indigo-400 border border-dashed border-indigo-300"
-                          : "bg-gradient-to-t from-blue-700 to-blue-500"
-                      }`}
-                      title={`Doanh thu: ${item.rev} triệu`}
-                    />
-                    {/* Expense Bar */}
-                    <div
-                      style={{ height: `${(item.exp / 500) * 100}%` }}
-                      className={`w-3 sm:w-5 rounded-t-md transition-all duration-300 group-hover:opacity-90 ${
-                        item.isFuture
-                          ? "bg-gradient-to-t from-rose-400 to-rose-300 border border-dashed border-rose-200"
-                          : "bg-gradient-to-t from-rose-600 to-rose-400"
-                      }`}
-                      title={`Chi phí: ${item.exp} triệu`}
-                    />
-                  </div>
-                  <span className={`text-[11px] font-medium text-center truncate max-w-full ${item.isFuture ? "text-indigo-600 dark:text-indigo-400 font-bold" : "text-muted-foreground"}`}>
-                    {item.month}
-                  </span>
-                </div>
-              ))}
+          {/* Dynamic Content: Empty State when 0 files, or Dataset Summary when files exist */}
+          {totalDatasets === 0 ? (
+            <div className="flex flex-col items-center justify-center p-8 text-center space-y-3 h-56">
+              <div className="size-12 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                <BarChart3 className="size-6" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="font-semibold text-sm text-foreground">Kho Dữ Liệu Đang Trống</h3>
+                <p className="text-xs text-muted-foreground max-w-md">
+                  Chưa có tệp dữ liệu kinh doanh nào được nạp. Hãy tải lên tệp Excel (.xlsx) hoặc CSV đầu tiên để hệ thống tự động bóc tách chỉ số và trực quan hóa biểu đồ thực tế.
+                </p>
+              </div>
+              <Link to="/datasets">
+                <Button size="sm" variant="default" className="gap-1.5 text-xs font-semibold shadow-sm">
+                  <Database className="size-3.5" /> Nạp tệp dữ liệu ngay
+                </Button>
+              </Link>
             </div>
-            <p className="text-[11px] text-muted-foreground text-center italic">
-              * Biểu đồ mô phỏng đường hồi quy xu hướng doanh thu và chi phí chuỗi thời gian của doanh nghiệp.
-            </p>
-          </div>
+          ) : (
+            <div className="space-y-4 pt-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {datasets.slice(0, 4).map((d) => (
+                  <div
+                    key={d.id}
+                    className="p-3.5 rounded-xl border bg-muted/20 flex flex-col justify-between space-y-2 hover:bg-muted/40 transition-colors"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-xs text-foreground truncate max-w-[200px]">
+                        {d.filename}
+                      </span>
+                      <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-500 border-emerald-500/30">
+                        {d.status === "ready" ? "Đã sẵn sàng" : d.status}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center justify-between text-[11px] text-muted-foreground font-mono">
+                      <span>{d.row_count.toLocaleString()} dòng • {d.column_count} cột</span>
+                      <span>v{d.version}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="p-3 rounded-lg bg-primary/5 border border-primary/20 flex items-center justify-between">
+                <span className="text-xs text-foreground/90">
+                  Đã sẵn sàng {totalDatasets} tệp dữ liệu ({totalRecords.toLocaleString()} dòng). Hãy sử dụng Trợ lý AI bên dưới để ra lệnh phân tích tức thì.
+                </span>
+                <Link to="/forecast">
+                  <Button size="sm" variant="ghost" className="text-xs text-primary hover:text-primary gap-1">
+                    Chạy dự báo <ArrowRight className="size-3.5" />
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Right 1 Col: Quick Data Hub Status */}
