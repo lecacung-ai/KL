@@ -1,11 +1,16 @@
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from sqlmodel import col, func, select
 
 from app.api.deps import CurrentUser, SessionDep
-from app.models import Item, ItemCreate, ItemPublic, ItemsPublic, ItemUpdate, Message
+from app.dto.request.item import ItemCreate, ItemUpdate
+from app.dto.response.common import Message
+from app.dto.response.item import ItemPublic, ItemsPublic
+from app.entities.item import Item
+from app.exceptions.app_exception import AppException
+from app.exceptions.error_code import ErrorCode
 
 router = APIRouter(prefix="/items", tags=["items"])
 
@@ -52,9 +57,9 @@ def read_item(session: SessionDep, current_user: CurrentUser, id: uuid.UUID) -> 
     """
     item = session.get(Item, id)
     if not item:
-        raise HTTPException(status_code=404, detail="Item not found")
+        raise AppException(ErrorCode.RESOURCE_NOT_FOUND, detail="Item not found")
     if not current_user.is_superuser and (item.owner_id != current_user.id):
-        raise HTTPException(status_code=403, detail="Not enough permissions")
+        raise AppException(ErrorCode.FORBIDDEN, detail="Not enough permissions")
     return item
 
 
@@ -85,9 +90,9 @@ def update_item(
     """
     item = session.get(Item, id)
     if not item:
-        raise HTTPException(status_code=404, detail="Item not found")
+        raise AppException(ErrorCode.RESOURCE_NOT_FOUND, detail="Item not found")
     if not current_user.is_superuser and (item.owner_id != current_user.id):
-        raise HTTPException(status_code=403, detail="Not enough permissions")
+        raise AppException(ErrorCode.FORBIDDEN, detail="Not enough permissions")
     update_dict = item_in.model_dump(exclude_unset=True)
     item.sqlmodel_update(update_dict)
     session.add(item)
@@ -105,9 +110,9 @@ def delete_item(
     """
     item = session.get(Item, id)
     if not item:
-        raise HTTPException(status_code=404, detail="Item not found")
+        raise AppException(ErrorCode.RESOURCE_NOT_FOUND, detail="Item not found")
     if not current_user.is_superuser and (item.owner_id != current_user.id):
-        raise HTTPException(status_code=403, detail="Not enough permissions")
+        raise AppException(ErrorCode.FORBIDDEN, detail="Not enough permissions")
     session.delete(item)
     session.commit()
     return Message(message="Item deleted successfully")

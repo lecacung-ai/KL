@@ -1,25 +1,19 @@
 import os
 import time
-import uuid
 import pandas as pd
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from fastapi import APIRouter
 from typing import Any
 
 from app.analytics.forecasting import train_and_forecast_series
 from app.api.deps import CurrentUser, SessionDep
 from app.core.data_loader import smart_load_dataframe
-from app.models import AnalysisHistory, Dataset
+from app.dto.request.forecast import ForecastRequest
+from app.entities.analysis_history import AnalysisHistory
+from app.entities.dataset import Dataset
+from app.exceptions.app_exception import AppException
+from app.exceptions.error_code import ErrorCode
 
 router = APIRouter()
-
-
-class ForecastRequest(BaseModel):
-    dataset_id: uuid.UUID
-    target_column: str
-    date_column: str | None = None
-    horizon: int = 3
-    model_type: str = "linear_regression"
 
 
 @router.post("/predict")
@@ -38,18 +32,27 @@ def predict_financial_trend(
     start_time = time.time()
     dataset = session.get(Dataset, request.dataset_id)
     if not dataset:
-        raise HTTPException(status_code=404, detail="Không tìm thấy tệp dữ liệu")
+        raise AppException(ErrorCode.DATASET_NOT_FOUND)
     if not current_user.is_superuser and (dataset.owner_id != current_user.id):
-        raise HTTPException(status_code=403, detail="Không có quyền truy cập tệp dữ liệu này")
+        raise AppException(
+            ErrorCode.DATASET_ACCESS_DENIED,
+            detail="Không có quyền truy cập tệp dữ liệu này",
+        )
 
     if not os.path.exists(dataset.file_path):
-        raise HTTPException(status_code=404, detail="Tệp dữ liệu không còn tồn tại trên máy chủ")
+        raise AppException(
+            ErrorCode.DATASET_FILE_NOT_FOUND,
+            detail="Tệp dữ liệu không còn tồn tại trên máy chủ",
+        )
 
     # Đọc tệp
     try:
         df = smart_load_dataframe(dataset.file_path)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Không thể đọc file dữ liệu: {str(e)}")
+        raise AppException(
+            ErrorCode.ANALYSIS_FILE_READ_ERROR,
+            detail=f"Không thể đọc file dữ liệu: {str(e)}",
+        )
 
     try:
         result = train_and_forecast_series(
@@ -78,7 +81,7 @@ def predict_financial_trend(
         )
         session.add(history_item)
         session.commit()
-        raise HTTPException(status_code=400, detail=str(e))
+        raise AppException(ErrorCode.ANALYSIS_ERROR, detail=str(e))
 
     elapsed_ms = round((time.time() - start_time) * 1000, 1)
 

@@ -1,9 +1,11 @@
-from fastapi import APIRouter, UploadFile, HTTPException, Form
+from fastapi import APIRouter, UploadFile, Form
 from app.api.deps import CurrentUser, SessionDep  # Dùng để kiểm tra quyền đăng nhập & database
 from app.core.config import settings
 from app.core.sandbox import execute_in_sandbox
 from app.core.data_loader import smart_load_dataframe
-from app.models import AnalysisHistory
+from app.entities.analysis_history import AnalysisHistory
+from app.exceptions.app_exception import AppException
+from app.exceptions.error_code import ErrorCode
 import shutil
 import os
 import pandas as pd
@@ -28,7 +30,10 @@ async def inspect_file_columns(
     phục vụ cho việc chọn phạm vi phân tích theo cột (Scope Selector).
     """
     if not file.filename.endswith(('.csv', '.xlsx', '.xls')):
-        raise HTTPException(status_code=400, detail="Chỉ hỗ trợ tệp định dạng .csv hoặc .xlsx/.xls")
+        raise AppException(
+            ErrorCode.UNSUPPORTED_FILE_TYPE,
+            detail="Chỉ hỗ trợ tệp định dạng .csv hoặc .xlsx/.xls",
+        )
 
     temp_path = os.path.join(UPLOAD_DIR, f"inspect_{uuid.uuid4().hex}_{file.filename}")
     try:
@@ -53,7 +58,10 @@ async def inspect_file_columns(
             "columns": columns_meta,
         }
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Không thể đọc cấu trúc tệp: {str(e)}")
+        raise AppException(
+            ErrorCode.ANALYSIS_FILE_READ_ERROR,
+            detail=f"Không thể đọc cấu trúc tệp: {str(e)}",
+        )
     finally:
         if os.path.exists(temp_path):
             try:
@@ -112,7 +120,10 @@ async def upload_data_file(
 ):
     # 1. Kiểm tra định dạng tệp
     if not file.filename.endswith(('.csv', '.xlsx', '.xls')):
-        raise HTTPException(status_code=400, detail="Chỉ hỗ trợ tệp định dạng .csv hoặc .xlsx/.xls")
+        raise AppException(
+            ErrorCode.UNSUPPORTED_FILE_TYPE,
+            detail="Chỉ hỗ trợ tệp định dạng .csv hoặc .xlsx/.xls",
+        )
 
     file_path = os.path.join(UPLOAD_DIR, file.filename)
 
@@ -141,7 +152,10 @@ async def upload_data_file(
         columns = df_scoped.columns.tolist()
         schema_info = f"Các cột trong phạm vi phân tích gồm: {', '.join(columns)}. Dữ liệu mẫu 5 dòng đầu:\n{df_scoped.head(5).to_string()}"
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Không thể đọc dữ liệu: {str(e)}")
+        raise AppException(
+            ErrorCode.ANALYSIS_UPLOAD_READ_ERROR,
+            detail=f"Không thể đọc dữ liệu: {str(e)}",
+        )
 
     # 4. Gọi AI sinh mã phân tích (Module 5)
     ai_generated_code = ""

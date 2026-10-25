@@ -4,13 +4,17 @@ import shutil
 import uuid
 from typing import Any
 import pandas as pd
-from fastapi import APIRouter, HTTPException, UploadFile, Form
+from fastapi import APIRouter, UploadFile, Form
 from fastapi.responses import FileResponse
 from sqlmodel import func, select
 
 from app.api.deps import CurrentUser, SessionDep
 from app.core.data_loader import smart_load_dataframe
-from app.models import Dataset, DatasetPublic, DatasetsPublic, Message
+from app.dto.response.common import Message
+from app.dto.response.dataset import DatasetPublic, DatasetsPublic
+from app.entities.dataset import Dataset
+from app.exceptions.app_exception import AppException
+from app.exceptions.error_code import ErrorCode
 
 router = APIRouter()
 
@@ -150,8 +154,8 @@ async def upload_dataset(
     file_ext = filename.split(".")[-1].lower() if "." in filename else ""
 
     if file_ext not in ["csv", "xlsx", "xls"]:
-        raise HTTPException(
-            status_code=400,
+        raise AppException(
+            ErrorCode.UNSUPPORTED_FILE_TYPE,
             detail="Định dạng tệp không được hỗ trợ. Vui lòng tải tệp .csv hoặc .xlsx/.xls",
         )
 
@@ -232,9 +236,9 @@ def read_dataset(
     """
     dataset = session.get(Dataset, id)
     if not dataset:
-        raise HTTPException(status_code=404, detail="Không tìm thấy tệp dữ liệu")
+        raise AppException(ErrorCode.DATASET_NOT_FOUND)
     if not current_user.is_superuser and (dataset.owner_id != current_user.id):
-        raise HTTPException(status_code=403, detail="Không đủ quyền truy cập tệp này")
+        raise AppException(ErrorCode.DATASET_ACCESS_DENIED)
     return dataset
 
 
@@ -249,9 +253,9 @@ def get_dataset_quality_report(
     """
     dataset = session.get(Dataset, id)
     if not dataset:
-        raise HTTPException(status_code=404, detail="Không tìm thấy tệp dữ liệu")
+        raise AppException(ErrorCode.DATASET_NOT_FOUND)
     if not current_user.is_superuser and (dataset.owner_id != current_user.id):
-        raise HTTPException(status_code=403, detail="Không đủ quyền truy cập tệp này")
+        raise AppException(ErrorCode.DATASET_ACCESS_DENIED)
 
     try:
         profile = json.loads(dataset.schema_info or "{}")
@@ -286,12 +290,12 @@ def clean_dataset(
     """
     dataset = session.get(Dataset, id)
     if not dataset:
-        raise HTTPException(status_code=404, detail="Không tìm thấy tệp dữ liệu")
+        raise AppException(ErrorCode.DATASET_NOT_FOUND)
     if not current_user.is_superuser and (dataset.owner_id != current_user.id):
-        raise HTTPException(status_code=403, detail="Không đủ quyền truy cập tệp này")
+        raise AppException(ErrorCode.DATASET_ACCESS_DENIED)
 
     if not os.path.exists(dataset.file_path):
-        raise HTTPException(status_code=404, detail="Tệp không tồn tại trên hệ thống lưu trữ")
+        raise AppException(ErrorCode.DATASET_FILE_NOT_FOUND)
 
     try:
         if dataset.file_type == "csv":
@@ -336,7 +340,10 @@ def clean_dataset(
         session.refresh(dataset)
         return dataset
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Lỗi khi làm sạch dữ liệu: {str(e)}")
+        raise AppException(
+            ErrorCode.DATASET_CLEAN_ERROR,
+            detail=f"Lỗi khi làm sạch dữ liệu: {str(e)}",
+        )
 
 
 @router.get("/{id}/download")
@@ -350,12 +357,12 @@ def download_dataset(
     """
     dataset = session.get(Dataset, id)
     if not dataset:
-        raise HTTPException(status_code=404, detail="Không tìm thấy tệp dữ liệu")
+        raise AppException(ErrorCode.DATASET_NOT_FOUND)
     if not current_user.is_superuser and (dataset.owner_id != current_user.id):
-        raise HTTPException(status_code=403, detail="Không đủ quyền truy cập tệp này")
+        raise AppException(ErrorCode.DATASET_ACCESS_DENIED)
 
     if not os.path.exists(dataset.file_path):
-        raise HTTPException(status_code=404, detail="Tệp không tồn tại trên hệ thống lưu trữ")
+        raise AppException(ErrorCode.DATASET_FILE_NOT_FOUND)
 
     return FileResponse(
         path=dataset.file_path,
@@ -375,9 +382,9 @@ def delete_dataset(
     """
     dataset = session.get(Dataset, id)
     if not dataset:
-        raise HTTPException(status_code=404, detail="Không tìm thấy tệp dữ liệu")
+        raise AppException(ErrorCode.DATASET_NOT_FOUND)
     if not current_user.is_superuser and (dataset.owner_id != current_user.id):
-        raise HTTPException(status_code=403, detail="Không đủ quyền truy cập tệp này")
+        raise AppException(ErrorCode.DATASET_ACCESS_DENIED)
 
     if os.path.exists(dataset.file_path):
         try:

@@ -1,15 +1,17 @@
 import uuid
 from typing import Any
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Query
 from sqlmodel import func, select
 
 from app.api.deps import CurrentUser, SessionDep
-from app.models import (
+from app.dto.response.analysis_history import (
     AnalysisHistoriesPublic,
-    AnalysisHistory,
     AnalysisHistoryPublic,
-    Message,
 )
+from app.dto.response.common import Message
+from app.entities.analysis_history import AnalysisHistory
+from app.exceptions.app_exception import AppException
+from app.exceptions.error_code import ErrorCode
 
 router = APIRouter()
 
@@ -103,9 +105,9 @@ def get_history_detail(
     """
     item = session.get(AnalysisHistory, id)
     if not item:
-        raise HTTPException(status_code=404, detail="Không tìm thấy bản ghi lịch sử")
+        raise AppException(ErrorCode.HISTORY_NOT_FOUND)
     if not current_user.is_superuser and (item.user_id != current_user.id):
-        raise HTTPException(status_code=403, detail="Không có quyền truy cập bản ghi này")
+        raise AppException(ErrorCode.HISTORY_ACCESS_DENIED)
     return item
 
 
@@ -120,9 +122,9 @@ def delete_history_item(
     """
     item = session.get(AnalysisHistory, id)
     if not item:
-        raise HTTPException(status_code=404, detail="Không tìm thấy bản ghi lịch sử")
+        raise AppException(ErrorCode.HISTORY_NOT_FOUND)
     if not current_user.is_superuser and (item.user_id != current_user.id):
-        raise HTTPException(status_code=403, detail="Không có quyền xóa bản ghi này")
+        raise AppException(ErrorCode.HISTORY_DELETE_DENIED)
 
     session.delete(item)
     session.commit()

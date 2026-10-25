@@ -1,13 +1,14 @@
 from sqlmodel import Session, create_engine, select
 
-from app import crud
 from app.core.config import settings
-from app.models import User, UserCreate
+from app.dto.request.user import UserCreate
+from app.entities.user import User
+from app.repositories.user_repository import user_repository
 
 engine = create_engine(str(settings.DATABASE_URL), pool_pre_ping=True)
 
 
-# make sure all SQLModel models are imported (app.models) before initializing DB
+# make sure all SQLModel entities are imported before initializing DB
 # otherwise, SQLModel might fail to initialize relationships properly
 # for more details: https://github.com/fastapi/full-stack-fastapi-template/issues/28
 
@@ -30,4 +31,4 @@ def init_db(session: Session) -> None:
             password=settings.FIRST_SUPERUSER_PASSWORD,
             is_superuser=True,
         )
-        user = crud.create_user(session=session, user_create=user_in)
+        user = user_repository.create(session, user_in)
