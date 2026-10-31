@@ -180,7 +180,14 @@ def run_kmeans_clustering(
     sample_cols += valid_features
     sample_data = []
     for _, row in working_df[sample_cols + ["_cluster"]].head(15).iterrows():
-        rec = {col: row[col] for col in sample_cols}
+        rec = {
+            col: (
+                row[col].item()
+                if isinstance(row[col], np.generic)
+                else row[col]
+            )
+            for col in sample_cols
+        }
         c_id = int(row["_cluster"])
         c_info = next(c for c in cluster_stats if c["cluster_id"] == c_id)
         rec["cluster_id"] = c_id

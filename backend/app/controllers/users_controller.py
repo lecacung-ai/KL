@@ -2,8 +2,6 @@ import uuid
 from typing import Any
 
 from fastapi import APIRouter, Depends
-from sqlmodel import col, delete, func, select
-
 from app.api.deps import (
     CurrentUser,
     SessionDep,
@@ -14,11 +12,11 @@ from app.core.security import get_password_hash, verify_password
 from app.dto.request.user import UpdatePassword, UserCreate, UserRegister, UserUpdate, UserUpdateMe
 from app.dto.response.common import Message
 from app.dto.response.user import UserPublic, UsersPublic
-from app.entities.item import Item
+from app.entities.user import User
 from app.exceptions.app_exception import AppException
 from app.exceptions.error_code import ErrorCode
 
-from app.mappers.user_mapper import to_user_response
+from app.mappers.user_mapper import to_users_response
 from app.services.email_service import generate_new_account_email, send_email
 from app.services.user_service import user_service
 
@@ -35,16 +33,9 @@ def read_users(session: SessionDep, skip: int = 0, limit: int = 100) -> Any:
     Retrieve users.
     """
 
-    count_statement = select(func.count()).select_from(User)
-    count = session.exec(count_statement).one()
+    users, count = user_service.list(session, skip=skip, limit=limit)
 
-    statement = (
-        select(User).order_by(col(User.created_at).desc()).offset(skip).limit(limit)
-    )
-    users = session.exec(statement).all()
-
-    users_public = [to_user_response(user) for user in users]
-    return UsersPublic(data=users_public, count=count)
+    return to_users_response(users, count)
 
 
 @router.post(
@@ -85,10 +76,7 @@ def update_user_me(
             raise AppException(ErrorCode.EMAIL_CONFLICT)
     user_data = user_in.model_dump(exclude_unset=True)
     current_user.sqlmodel_update(user_data)
-    session.add(current_user)
-    session.commit()
-    session.refresh(current_user)
-    return current_user
+    return user_service.save(session, current_user)
 
 
 @router.patch("/me/password", response_model=Message)
@@ -105,8 +93,7 @@ def update_password_me(
         raise AppException(ErrorCode.PASSWORD_UNCHANGED)
     hashed_password = get_password_hash(body.new_password)
     current_user.hashed_password = hashed_password
-    session.add(current_user)
-    session.commit()
+    user_service.save(session, current_user)
     return Message(message="Password updated successfully")
 
 
@@ -125,8 +112,7 @@ def delete_user_me(session: SessionDep, current_user: CurrentUser) -> Any:
     """
     if current_user.is_superuser:
         raise AppException(ErrorCode.SELF_DELETE_FORBIDDEN)
-    session.delete(current_user)
-    session.commit()
+    user_service.delete(session, current_user)
     return Message(message="User deleted successfully")
 
 
@@ -153,7 +139,7 @@ def read_user_by_id(
     """
     Get a specific user by id.
     """
-    user = session.get(User, user_id)
+    user = user_service.get_by_id(session, user_id)
     if user == current_user:
         return user
     if not current_user.is_superuser:
@@ -181,7 +167,7 @@ def update_user(
     Update a user.
     """
 
-    db_user = session.get(User, user_id)
+    db_user = user_service.get_by_id(session, user_id)
     if not db_user:
         raise AppException(
             ErrorCode.USER_NOT_FOUND,
@@ -203,14 +189,11 @@ def delete_user(
     """
     Delete a user.
     """
-    user = session.get(User, user_id)
+    user = user_service.get_by_id(session, user_id)
     if not user:
         raise AppException(ErrorCode.USER_NOT_FOUND)
     if user == current_user:
         raise AppException(ErrorCode.SELF_DELETE_FORBIDDEN)
-    statement = delete(Item).where(col(Item.owner_id) == user_id)
-    session.exec(statement)
-    session.delete(user)
-    session.commit()
+    user_service.delete(session, user, include_owned_items=True)
     return Message(message="User deleted successfully")
 

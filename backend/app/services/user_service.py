@@ -23,6 +23,18 @@ class UserService:
     def authenticate(self, session: Session, email: str, password: str) -> User | None:
         return self.repository.authenticate(session, email, password)
 
+    def list(self, session: Session, *, skip: int, limit: int) -> tuple[list[User], int]:
+        return self.repository.list(session, skip=skip, limit=limit)
+
+    def get_by_id(self, session: Session, user_id) -> User | None:
+        return self.repository.get_by_id(session, user_id)
+
+    def save(self, session: Session, user: User) -> User:
+        return self.repository.save(session, user)
+
+    def delete(self, session: Session, user: User, *, include_owned_items: bool = False) -> None:
+        self.repository.delete(session, user, include_owned_items=include_owned_items)
+
 
 user_service = UserService()
 

@@ -62,9 +62,16 @@ services:
     volumes:
       - ./backend/app/api:/app/backend/app/api
       - ./backend/app/analytics:/app/backend/app/analytics
+      - ./backend/app/controllers:/app/backend/app/controllers
       - ./backend/app/core:/app/backend/app/core
-      - ./backend/app/models.py:/app/backend/app/models.py
+      - ./backend/app/dto:/app/backend/app/dto
+      - ./backend/app/entities:/app/backend/app/entities
+      - ./backend/app/exceptions:/app/backend/app/exceptions
+      - ./backend/app/mappers:/app/backend/app/mappers
+      - ./backend/app/repositories:/app/backend/app/repositories
+      - ./backend/app/services:/app/backend/app/services
       - ./backend/app/main.py:/app/backend/app/main.py
+      - ./backend/app/initial_data.py:/app/backend/app/initial_data.py
       - ./backend/uploads:/app/uploads
       - ./backend/htmlcov:/app/backend/htmlcov
       - ./backend/tests:/app/backend/tests

@@ -4,11 +4,14 @@ The repository delegates to the existing CRUD implementation so current
 callers keep exactly the same database behavior while adopting the new layer.
 """
 
-from sqlmodel import Session
+import uuid
+
+from sqlmodel import Session, col, delete, func, select
 
 from app.core.security import get_password_hash, verify_password
 from app.dto.request.user import UserCreate, UserUpdate
 from app.entities.user import User
+from app.entities.item import Item
 
 
 DUMMY_HASH = "$argon2id$v=19$m=65536,t=3,p=4$MjQyZWE1MzBjYjJlZTI0Yw$YTU4NGM5ZTZmYjE2NzZlZjY0ZWY3ZGRkY2U2OWFjNjk"
@@ -60,6 +63,26 @@ def authenticate(*, session: Session, email: str, password: str) -> User | None:
 
 
 class UserRepository:
+    def list(self, session: Session, *, skip: int, limit: int) -> tuple[list[User], int]:
+        count = session.exec(select(func.count()).select_from(User)).one()
+        users = session.exec(select(User).order_by(col(User.created_at).desc()).offset(skip).limit(limit)).all()
+        return users, count
+
+    def get_by_id(self, session: Session, user_id: uuid.UUID) -> User | None:
+        return session.get(User, user_id)
+
+    def save(self, session: Session, user: User) -> User:
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+        return user
+
+    def delete(self, session: Session, user: User, *, include_owned_items: bool = False) -> None:
+        if include_owned_items:
+            session.exec(delete(Item).where(col(Item.owner_id) == user.id))
+        session.delete(user)
+        session.commit()
+
     def get_by_email(self, session: Session, email: str) -> User | None:
         return get_user_by_email(session=session, email=email)
 
