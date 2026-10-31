@@ -44,7 +44,7 @@ const DeleteConfirmation = () => {
     <Dialog>
       <DialogTrigger asChild>
         <Button variant="destructive" className="mt-3">
-          Delete Account
+          Xóa tài khoản
         </Button>
       </DialogTrigger>
       <DialogContent>
@@ -62,7 +62,7 @@ const DeleteConfirmation = () => {
           <DialogFooter className="mt-4">
             <DialogClose asChild>
               <Button variant="outline" disabled={mutation.isPending}>
-                Cancel
+                Hủy
               </Button>
             </DialogClose>
             <LoadingButton
@@ -70,7 +70,7 @@ const DeleteConfirmation = () => {
               type="submit"
               loading={mutation.isPending}
             >
-              Delete
+              Xóa
             </LoadingButton>
           </DialogFooter>
         </form>

@@ -15,8 +15,8 @@ export function Logo({
   asLink = true,
 }: LogoProps) {
   const content = (
-    <div className={cn("flex items-center gap-2.5 select-none", className)}>
-      <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-400 text-white shadow-md shadow-blue-500/25">
+    <div data-logo className={cn("flex items-center gap-2.5 select-none", className)}>
+      <div className="flex size-10 shrink-0 items-center justify-center rounded-[14px] bg-primary text-primary-foreground">
         <TrendingUp className="size-5 stroke-[2.5]" />
       </div>
       <div
@@ -27,15 +27,12 @@ export function Logo({
         )}
       >
         <div className="flex items-center gap-1.5">
-          <span className="font-black text-lg tracking-tight bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 bg-clip-text text-transparent">
+          <span className="text-xl font-semibold tracking-tight text-foreground">
             FinAI
           </span>
-          <span className="rounded-full bg-blue-500/10 px-1.5 py-0.5 text-[9px] font-bold text-blue-600 dark:text-blue-400 border border-blue-500/20">
-            AI Assistant
-          </span>
         </div>
-        <span className="text-[10px] text-muted-foreground font-medium mt-1 truncate max-w-[140px]">
-          Phân Tích & Dự Báo
+        <span className="mt-1 max-w-[160px] truncate text-xs text-muted-foreground">
+          Dữ liệu & góc nhìn
         </span>
       </div>
     </div>

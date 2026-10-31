@@ -6,7 +6,7 @@ import { logInUser } from "./utils/user"
 
 test("Admin page is accessible and shows correct title", async ({ page }) => {
   await page.goto("/admin")
-  await expect(page.getByRole("heading", { name: "Users" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Quản lý người dùng" })).toBeVisible()
   await expect(
     page.getByText("Manage user accounts and permissions"),
   ).toBeVisible()
@@ -14,7 +14,7 @@ test("Admin page is accessible and shows correct title", async ({ page }) => {
 
 test("Add User button is visible", async ({ page }) => {
   await page.goto("/admin")
-  await expect(page.getByRole("button", { name: "Add User" })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Thêm người dùng" })).toBeVisible()
 })
 
 test.describe("Admin user management", () => {
@@ -25,14 +25,14 @@ test.describe("Admin user management", () => {
     const password = randomPassword()
     const fullName = "Test User Admin"
 
-    await page.getByRole("button", { name: "Add User" }).click()
+    await page.getByRole("button", { name: "Thêm người dùng" }).click()
 
     await page.getByPlaceholder("Email").fill(email)
     await page.getByPlaceholder("Full name").fill(fullName)
     await page.getByPlaceholder("Password").first().fill(password)
     await page.getByPlaceholder("Password").last().fill(password)
 
-    await page.getByRole("button", { name: "Save" }).click()
+    await page.getByRole("button", { name: "Lưu thay đổi" }).click()
 
     await expect(page.getByText("User created successfully")).toBeVisible()
 
@@ -48,7 +48,7 @@ test.describe("Admin user management", () => {
     const email = randomEmail()
     const password = randomPassword()
 
-    await page.getByRole("button", { name: "Add User" }).click()
+    await page.getByRole("button", { name: "Thêm người dùng" }).click()
 
     await page.getByPlaceholder("Email").fill(email)
     await page.getByPlaceholder("Password").first().fill(password)
@@ -56,7 +56,7 @@ test.describe("Admin user management", () => {
     await page.getByLabel("Is superuser?").check()
     await page.getByLabel("Is active?").check()
 
-    await page.getByRole("button", { name: "Save" }).click()
+    await page.getByRole("button", { name: "Lưu thay đổi" }).click()
 
     await expect(page.getByText("User created successfully")).toBeVisible()
 
@@ -74,12 +74,12 @@ test.describe("Admin user management", () => {
     const originalName = "Original Name"
     const updatedName = "Updated Name"
 
-    await page.getByRole("button", { name: "Add User" }).click()
+    await page.getByRole("button", { name: "Thêm người dùng" }).click()
     await page.getByPlaceholder("Email").fill(email)
     await page.getByPlaceholder("Full name").fill(originalName)
     await page.getByPlaceholder("Password").first().fill(password)
     await page.getByPlaceholder("Password").last().fill(password)
-    await page.getByRole("button", { name: "Save" }).click()
+    await page.getByRole("button", { name: "Lưu thay đổi" }).click()
 
     await expect(page.getByText("User created successfully")).toBeVisible()
     await expect(page.getByRole("dialog")).not.toBeVisible()
@@ -87,10 +87,10 @@ test.describe("Admin user management", () => {
     const userRow = page.getByRole("row").filter({ hasText: email })
     await userRow.getByRole("button").click()
 
-    await page.getByRole("menuitem", { name: "Edit User" }).click()
+    await page.getByRole("menuitem", { name: "Chỉnh sửa người dùng" }).click()
 
     await page.getByPlaceholder("Full name").fill(updatedName)
-    await page.getByRole("button", { name: "Save" }).click()
+    await page.getByRole("button", { name: "Lưu thay đổi" }).click()
 
     await expect(page.getByText("User updated successfully")).toBeVisible()
     await expect(page.getByText(updatedName)).toBeVisible()
@@ -102,11 +102,11 @@ test.describe("Admin user management", () => {
     const email = randomEmail()
     const password = randomPassword()
 
-    await page.getByRole("button", { name: "Add User" }).click()
+    await page.getByRole("button", { name: "Thêm người dùng" }).click()
     await page.getByPlaceholder("Email").fill(email)
     await page.getByPlaceholder("Password").first().fill(password)
     await page.getByPlaceholder("Password").last().fill(password)
-    await page.getByRole("button", { name: "Save" }).click()
+    await page.getByRole("button", { name: "Lưu thay đổi" }).click()
 
     await expect(page.getByText("User created successfully")).toBeVisible()
 
@@ -115,7 +115,7 @@ test.describe("Admin user management", () => {
     const userRow = page.getByRole("row").filter({ hasText: email })
     await userRow.getByRole("button").click()
 
-    await page.getByRole("menuitem", { name: "Delete User" }).click()
+    await page.getByRole("menuitem", { name: "Xóa người dùng" }).click()
 
     await page.getByRole("button", { name: "Delete" }).click()
 
@@ -131,10 +131,10 @@ test.describe("Admin user management", () => {
   test("Cancel user creation", async ({ page }) => {
     await page.goto("/admin")
 
-    await page.getByRole("button", { name: "Add User" }).click()
+    await page.getByRole("button", { name: "Thêm người dùng" }).click()
     await page.getByPlaceholder("Email").fill("test@example.com")
 
-    await page.getByRole("button", { name: "Cancel" }).click()
+    await page.getByRole("button", { name: "Hủy" }).click()
 
     await expect(page.getByRole("dialog")).not.toBeVisible()
   })
@@ -142,7 +142,7 @@ test.describe("Admin user management", () => {
   test("Email is required and must be valid", async ({ page }) => {
     await page.goto("/admin")
 
-    await page.getByRole("button", { name: "Add User" }).click()
+    await page.getByRole("button", { name: "Thêm người dùng" }).click()
 
     await page.getByPlaceholder("Email").fill("invalid-email")
     await page.getByPlaceholder("Email").blur()
@@ -153,12 +153,12 @@ test.describe("Admin user management", () => {
   test("Password must be at least 8 characters", async ({ page }) => {
     await page.goto("/admin")
 
-    await page.getByRole("button", { name: "Add User" }).click()
+    await page.getByRole("button", { name: "Thêm người dùng" }).click()
 
     await page.getByPlaceholder("Email").fill(randomEmail())
     await page.getByPlaceholder("Password").first().fill("short")
     await page.getByPlaceholder("Password").last().fill("short")
-    await page.getByRole("button", { name: "Save" }).click()
+    await page.getByRole("button", { name: "Lưu thay đổi" }).click()
 
     await expect(
       page.getByText("Password must be at least 8 characters"),
@@ -168,7 +168,7 @@ test.describe("Admin user management", () => {
   test("Passwords must match", async ({ page }) => {
     await page.goto("/admin")
 
-    await page.getByRole("button", { name: "Add User" }).click()
+    await page.getByRole("button", { name: "Thêm người dùng" }).click()
 
     await page.getByPlaceholder("Email").fill(randomEmail())
     await page.getByPlaceholder("Password").first().fill(randomPassword())
@@ -191,7 +191,7 @@ test.describe("Admin page access control", () => {
 
     await page.goto("/admin")
 
-    await expect(page.getByRole("heading", { name: "Users" })).not.toBeVisible()
+    await expect(page.getByRole("heading", { name: "Quản lý người dùng" })).not.toBeVisible()
     await expect(page).not.toHaveURL(/\/admin/)
   })
 
@@ -200,6 +200,6 @@ test.describe("Admin page access control", () => {
 
     await page.goto("/admin")
 
-    await expect(page.getByRole("heading", { name: "Users" })).toBeVisible()
+    await expect(page.getByRole("heading", { name: "Quản lý người dùng" })).toBeVisible()
   })
 })

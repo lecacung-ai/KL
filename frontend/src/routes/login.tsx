@@ -44,7 +44,7 @@ export const Route = createFileRoute("/login")({
   head: () => ({
     meta: [
       {
-        title: "Log In - FastAPI Template",
+        title: "Đăng nhập - FinAI",
       },
     ],
   }),
@@ -72,10 +72,12 @@ function Login() {
       <Form {...form}>
         <form
           onSubmit={form.handleSubmit(onSubmit)}
-          className="flex flex-col gap-6"
+          className="flex flex-col gap-7"
         >
-          <div className="flex flex-col items-center gap-2 text-center">
-            <h1 className="text-2xl font-bold">Login to your account</h1>
+          <div className="space-y-3">
+            <p className="finai-eyebrow mb-0">Đăng nhập không gian làm việc</p>
+            <h1 className="text-3xl font-semibold sm:text-4xl">Chào mừng bạn trở lại.</h1>
+            <p className="max-w-sm text-sm leading-6 text-muted-foreground">Tiếp tục với dữ liệu, báo cáo và những phân tích bạn đang thực hiện.</p>
           </div>
 
           <div className="grid gap-4">
@@ -104,18 +106,18 @@ function Login() {
               render={({ field }) => (
                 <FormItem>
                   <div className="flex items-center">
-                    <FormLabel>Password</FormLabel>
+                    <FormLabel>Mật khẩu</FormLabel>
                     <RouterLink
                       to="/recover-password"
                       className="ml-auto text-sm underline-offset-4 hover:underline"
                     >
-                      Forgot your password?
+                      Quên mật khẩu?
                     </RouterLink>
                   </div>
                   <FormControl>
                     <PasswordInput
                       data-testid="password-input"
-                      placeholder="Password"
+                      placeholder="Nhập mật khẩu"
                       {...field}
                     />
                   </FormControl>
@@ -125,14 +127,14 @@ function Login() {
             />
 
             <LoadingButton type="submit" loading={loginMutation.isPending}>
-              Log In
+              Đăng nhập
             </LoadingButton>
           </div>
 
-          <div className="text-center text-sm">
-            Don't have an account yet?{" "}
+          <div className="finai-auth-signup text-center text-sm">
+            Chưa có tài khoản?{" "}
             <RouterLink to="/signup" className="underline underline-offset-4">
-              Sign up
+              Đăng ký
             </RouterLink>
           </div>
         </form>

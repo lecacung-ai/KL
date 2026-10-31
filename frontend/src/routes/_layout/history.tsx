@@ -1,24 +1,7 @@
+import { PageHeading } from "@/components/Common/PageHeading"
 import { useState, useEffect } from "react"
 import { createFileRoute } from "@tanstack/react-router"
-import {
-  History as HistoryIcon,
-  Search,
-  RefreshCw,
-  Clock,
-  Cpu,
-  CheckCircle2,
-  AlertCircle,
-  Eye,
-  Trash2,
-  Download,
-  Copy,
-  Check,
-  FileSpreadsheet,
-  Code2,
-  BarChart3,
-  Terminal,
-  Activity,
-} from "lucide-react"
+import { History as HistoryIcon, Search, RefreshCw, Clock, Cpu, CheckCircle2, AlertCircle, Eye, Trash2, Download, Copy, Check, FileSpreadsheet, Code2, BarChart3, Terminal } from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -150,79 +133,58 @@ function HistoryPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6 p-4 md:p-8 max-w-7xl mx-auto w-full">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pb-2 border-b border-border">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Lịch Sử Phân Tích & Giám Sát Tài Nguyên</h1>
-            <Badge variant="outline" className="bg-blue-500/10 text-blue-500 border-blue-500/30 gap-1 text-xs">
-              <Activity className="h-3 w-3" />
-              Resource Monitoring
-            </Badge>
-          </div>
-          <p className="text-muted-foreground text-sm mt-1">
-            Minh bạch hóa hoạt động của hệ thống, kiểm toán truy vấn và đo lường thời gian thực thi Sandbox
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
+    <div className="flex min-w-0 flex-col gap-7 pb-8 w-full">
+      <PageHeading eyebrow="Mỗi lần khám phá đều có dấu vết" title="Lịch sử phân tích"
+        description="Xem lại những câu hỏi, kết quả và thông tin thực thi đã được lưu."
+        action={<div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" size="sm" onClick={loadData} disabled={isLoading} className="gap-2">
-            <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
-            Làm mới
+            <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} /> Làm mới
           </Button>
           {historyItems.length > 0 && (
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => setIsClearAllDialogOpen(true)}
-              className="gap-2"
-            >
-              <Trash2 className="h-4 w-4" />
-              Dọn dẹp lịch sử
+            <Button variant="destructive" size="sm" onClick={() => setIsClearAllDialogOpen(true)} className="gap-2">
+              <Trash2 className="h-4 w-4" /> Dọn dẹp lịch sử
             </Button>
           )}
-        </div>
-      </div>
+        </div>} />
 
       {/* Metrics Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="border-border bg-card/60 backdrop-blur-sm p-4 shadow-sm">
+        <Card className="border-border bg-card  p-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tổng Lượt Truy Vấn</span>
+            <span className="text-xs font-semibold tracking-normal text-muted-foreground">Tổng Lượt Truy Vấn</span>
             <HistoryIcon className="h-4 w-4 text-primary" />
           </div>
-          <div className="text-2xl font-bold mt-2 text-foreground">{stats.total_queries}</div>
-          <span className="text-[11px] text-muted-foreground">Toàn bộ câu hỏi & tác vụ</span>
+          <div className="text-2xl font-semibold mt-2 text-foreground">{stats.total_queries}</div>
+          <span className="text-xs text-muted-foreground">Toàn bộ câu hỏi & tác vụ</span>
         </Card>
 
-        <Card className="border-border bg-card/60 backdrop-blur-sm p-4 shadow-sm">
+        <Card className="border-border bg-card  p-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tỷ Lệ Thành Công</span>
+            <span className="text-xs font-semibold tracking-normal text-muted-foreground">Tỷ Lệ Thành Công</span>
             <CheckCircle2 className="h-4 w-4 text-emerald-500" />
           </div>
-          <div className="text-2xl font-bold mt-2 text-emerald-500">{stats.success_rate_pct}%</div>
-          <span className="text-[11px] text-muted-foreground">Sandbox xử lý chính xác</span>
+          <div className="text-2xl font-semibold mt-2 text-emerald-500">{stats.success_rate_pct}%</div>
+          <span className="text-xs text-muted-foreground">Sandbox xử lý chính xác</span>
         </Card>
 
-        <Card className="border-border bg-card/60 backdrop-blur-sm p-4 shadow-sm">
+        <Card className="border-border bg-card  p-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Thời Gian Phản Hồi TB</span>
+            <span className="text-xs font-semibold tracking-normal text-muted-foreground">Thời Gian Phản Hồi TB</span>
             <Clock className="h-4 w-4 text-amber-500" />
           </div>
-          <div className="text-2xl font-bold mt-2 text-foreground">
+          <div className="text-2xl font-semibold mt-2 text-foreground">
             {stats.avg_time_ms > 1000 ? `${(stats.avg_time_ms / 1000).toFixed(2)}s` : `${stats.avg_time_ms}ms`}
           </div>
-          <span className="text-[11px] text-muted-foreground">Tốc độ sinh mã & chạy Sandbox</span>
+          <span className="text-xs text-muted-foreground">Tốc độ sinh mã & chạy Sandbox</span>
         </Card>
 
-        <Card className="border-border bg-card/60 backdrop-blur-sm p-4 shadow-sm">
+        <Card className="border-border bg-card  p-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Dung Lượng Bộ Nhớ TB</span>
-            <Cpu className="h-4 w-4 text-purple-500" />
+            <span className="text-xs font-semibold tracking-normal text-muted-foreground">Dung Lượng Bộ Nhớ TB</span>
+            <Cpu className="h-4 w-4 text-primary" />
           </div>
-          <div className="text-2xl font-bold mt-2 text-foreground">{stats.avg_memory_mb} MB</div>
-          <span className="text-[11px] text-muted-foreground">Tiến trình con cô lập an toàn</span>
+          <div className="text-2xl font-semibold mt-2 text-foreground">{stats.avg_memory_mb} MB</div>
+          <span className="text-xs text-muted-foreground">Tiến trình con cô lập an toàn</span>
         </Card>
       </div>
 
@@ -320,7 +282,7 @@ function HistoryPage() {
                         <TableCell className="text-center">
                           <Badge
                             variant="outline"
-                            className={`text-[10px] gap-1 ${
+                            className={`text-xs gap-1 ${
                               isSuccess
                                 ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30"
                                 : "bg-destructive/10 text-destructive border-destructive/30"
@@ -386,7 +348,7 @@ function HistoryPage() {
                     {new Date(selectedItem.created_at).toLocaleString("vi-VN")}
                   </span>
                 </div>
-                <DialogTitle className="text-lg font-bold mt-2 text-foreground">
+                <DialogTitle className="text-lg font-semibold mt-2 text-foreground">
                   {selectedItem.query}
                 </DialogTitle>
                 <DialogDescription className="text-xs flex items-center gap-3 pt-1">
@@ -490,7 +452,7 @@ function HistoryPage() {
       <Dialog open={isClearAllDialogOpen} onOpenChange={setIsClearAllDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-base font-bold">Xác nhận dọn dẹp lịch sử</DialogTitle>
+            <DialogTitle className="text-base font-semibold">Xác nhận dọn dẹp lịch sử</DialogTitle>
             <DialogDescription className="text-xs">
               Thao tác này sẽ xóa toàn bộ nhật ký câu hỏi, mã phân tích và ảnh biểu đồ đã lưu. Hành động này không thể hoàn tác.
             </DialogDescription>

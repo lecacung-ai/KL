@@ -83,7 +83,7 @@ export function DataTable<TData, TValue>({
                 colSpan={columns.length}
                 className="h-32 text-center text-muted-foreground"
               >
-                No results found.
+                Chưa có dữ liệu để hiển thị.
               </TableCell>
             </TableRow>
           )}
@@ -109,7 +109,7 @@ export function DataTable<TData, TValue>({
               entries
             </div>
             <div className="flex items-center gap-x-2">
-              <p className="text-sm text-muted-foreground">Rows per page</p>
+              <p className="text-sm text-muted-foreground">Số dòng mỗi trang</p>
               <Select
                 value={`${table.getState().pagination.pageSize}`}
                 onValueChange={(value) => {
@@ -152,7 +152,7 @@ export function DataTable<TData, TValue>({
                 onClick={() => table.setPageIndex(0)}
                 disabled={!table.getCanPreviousPage()}
               >
-                <span className="sr-only">Go to first page</span>
+                <span className="sr-only">Trang đầu</span>
                 <ChevronsLeft className="h-4 w-4" />
               </Button>
               <Button
@@ -162,7 +162,7 @@ export function DataTable<TData, TValue>({
                 onClick={() => table.previousPage()}
                 disabled={!table.getCanPreviousPage()}
               >
-                <span className="sr-only">Go to previous page</span>
+                <span className="sr-only">Trang trước</span>
                 <ChevronLeft className="h-4 w-4" />
               </Button>
               <Button
@@ -172,7 +172,7 @@ export function DataTable<TData, TValue>({
                 onClick={() => table.nextPage()}
                 disabled={!table.getCanNextPage()}
               >
-                <span className="sr-only">Go to next page</span>
+                <span className="sr-only">Trang tiếp</span>
                 <ChevronRight className="h-4 w-4" />
               </Button>
               <Button
@@ -182,7 +182,7 @@ export function DataTable<TData, TValue>({
                 onClick={() => table.setPageIndex(table.getPageCount() - 1)}
                 disabled={!table.getCanNextPage()}
               >
-                <span className="sr-only">Go to last page</span>
+                <span className="sr-only">Trang cuối</span>
                 <ChevronsRight className="h-4 w-4" />
               </Button>
             </div>

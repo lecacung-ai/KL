@@ -60,7 +60,7 @@ export const Route = createFileRoute("/reset-password")({
   head: () => ({
     meta: [
       {
-        title: "Reset Password - FastAPI Template",
+        title: "Đặt lại mật khẩu - FinAI",
       },
     ],
   }),
@@ -104,7 +104,7 @@ function ResetPassword() {
           className="flex flex-col gap-6"
         >
           <div className="flex flex-col items-center gap-2 text-center">
-            <h1 className="text-2xl font-bold">Reset Password</h1>
+            <h1 className="text-2xl font-semibold">Đặt lại mật khẩu</h1>
           </div>
 
           <div className="grid gap-4">
@@ -113,7 +113,7 @@ function ResetPassword() {
               name="new_password"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>New Password</FormLabel>
+                  <FormLabel>Mật khẩu mới</FormLabel>
                   <FormControl>
                     <PasswordInput
                       data-testid="new-password-input"
@@ -131,7 +131,7 @@ function ResetPassword() {
               name="confirm_password"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Confirm Password</FormLabel>
+                  <FormLabel>Xác nhận mật khẩu</FormLabel>
                   <FormControl>
                     <PasswordInput
                       data-testid="confirm-password-input"
@@ -149,14 +149,14 @@ function ResetPassword() {
               className="w-full"
               loading={mutation.isPending}
             >
-              Reset Password
+              Đặt lại mật khẩu
             </LoadingButton>
           </div>
 
           <div className="text-center text-sm">
-            Remember your password?{" "}
+            Bạn đã nhớ mật khẩu?{" "}
             <RouterLink to="/login" className="underline underline-offset-4">
-              Log in
+              Đăng nhập
             </RouterLink>
           </div>
         </form>

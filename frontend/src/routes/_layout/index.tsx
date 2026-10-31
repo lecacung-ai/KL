@@ -1,20 +1,11 @@
 import { useState, useEffect } from "react"
 import { createFileRoute, Link } from "@tanstack/react-router"
-import {
-  Database,
-  TrendingUp,
-  DollarSign,
-  Activity,
-  ArrowUpRight,
-  Sparkles,
-  BarChart3,
-  Layers,
-  ArrowRight,
-} from "lucide-react"
+import { Database, TrendingUp, Activity, ArrowUpRight, BarChart3, Layers, ArrowRight, MessageSquareText, FileSpreadsheet } from "lucide-react"
 
 import useAuth from "@/hooks/useAuth"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { PageHeading } from "@/components/Common/PageHeading"
 import DataAnalyzer from "../../components/DataAnalyzer"
 import { DatasetsService, Dataset } from "@/services/datasetsService"
 
@@ -83,294 +74,82 @@ function Dashboard() {
   }
 
   return (
-    <div className="space-y-6 pb-12">
-      {/* Top Executive Welcome & Quick Action Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b pb-6">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-foreground">
-              Tổng Quan Tài Chính & Kinh Doanh
-            </h1>
-            <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 gap-1.5 font-semibold text-xs">
-              <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" /> Hệ thống sẵn sàng
-            </Badge>
-          </div>
-          <p className="text-sm text-muted-foreground mt-1">
-            Chào mừng trở lại, <span className="font-semibold text-foreground">{currentUser?.full_name || currentUser?.email?.split("@")[0]}</span>. Dưới đây là phân tích dữ liệu và dự báo tài chính doanh nghiệp mới nhất.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2.5">
-          <Link to="/datasets">
-            <Button className="bg-blue-600 hover:bg-blue-700 text-white font-semibold gap-2 shadow-md shadow-blue-500/20 h-10 px-4">
-              <Database className="size-4" /> Kho Dữ Liệu Doanh Nghiệp
-            </Button>
-          </Link>
-        </div>
-      </div>
-
-      {/* 4 Professional KPI Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Card 1: Doanh Thu Dự Báo / Trạng Thái Dự Báo */}
-        <div className="rounded-xl border bg-card p-5 shadow-sm space-y-3 relative overflow-hidden group hover:border-blue-500/40 transition-all">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              Dự Báo Tài Chính (Kỳ Tới)
-            </span>
-            <div className="flex size-9 items-center justify-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400">
-              <DollarSign className="size-4.5" />
-            </div>
-          </div>
-          <div className="space-y-1">
-            <h3 className="text-2xl font-black text-foreground">
-              {totalDatasets === 0 ? "--" : "Sẵn sàng"}
-            </h3>
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
-              {totalDatasets === 0 ? (
-                <span>Chưa nạp tệp dữ liệu</span>
-              ) : (
-                <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                  <ArrowUpRight className="size-3.5" /> Khai thác từ {totalDatasets} tệp nguồn
-                </span>
-              )}
-            </div>
-          </div>
-          <div className="w-full bg-muted/60 h-1.5 rounded-full overflow-hidden">
-            <div
-              className="bg-blue-600 h-full rounded-full transition-all"
-              style={{ width: totalDatasets === 0 ? "0%" : "100%" }}
-            />
-          </div>
-        </div>
-
-        {/* Card 2: Chỉ Số Định Lượng Đã Khai Thác */}
-        <div className="rounded-xl border bg-card p-5 shadow-sm space-y-3 relative overflow-hidden group hover:border-emerald-500/40 transition-all">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              Chỉ Số Định Lượng Khai Thác
-            </span>
-            <div className="flex size-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400">
-              <TrendingUp className="size-4.5" />
-            </div>
-          </div>
-          <div className="space-y-1">
-            <h3 className="text-2xl font-black text-foreground">
-              {totalDatasets === 0 ? "--" : `${totalNumericCols} chỉ số`}
-            </h3>
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
-              {totalDatasets === 0 ? (
-                <span>Cần nạp báo cáo tài chính</span>
-              ) : (
-                <span className="text-emerald-600 dark:text-emerald-400">
-                  Doanh thu, chi phí, sản lượng...
-                </span>
-              )}
-            </div>
-          </div>
-          <div className="w-full bg-muted/60 h-1.5 rounded-full overflow-hidden">
-            <div
-              className="bg-emerald-500 h-full rounded-full transition-all"
-              style={{ width: totalDatasets === 0 ? "0%" : "100%" }}
-            />
-          </div>
-        </div>
-
-        {/* Card 3: Quy Mô Kho Dữ Liệu */}
-        <div className="rounded-xl border bg-card p-5 shadow-sm space-y-3 relative overflow-hidden group hover:border-indigo-500/40 transition-all">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              Quy Mô Kho Dữ Liệu
-            </span>
-            <div className="flex size-9 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400">
-              <Database className="size-4.5" />
-            </div>
-          </div>
-          <div className="space-y-1">
-            <h3 className="text-2xl font-black text-foreground">
-              {totalDatasets} tệp <span className="text-sm font-normal text-muted-foreground">({formatFileSize(totalBytes)})</span>
-            </h3>
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
-              <Layers className="size-3.5 text-indigo-500" /> {totalRecords.toLocaleString()} bản ghi phân tích
-            </div>
-          </div>
-          <div className="w-full bg-muted/60 h-1.5 rounded-full overflow-hidden">
-            <div
-              className="bg-indigo-600 h-full rounded-full transition-all"
-              style={{ width: `${Math.min(100, totalDatasets * 25)}%` }}
-            />
-          </div>
-        </div>
-
-        {/* Card 4: Sức Khỏe Dữ Liệu Doanh Nghiệp */}
-        <div className="rounded-xl border bg-card p-5 shadow-sm space-y-3 relative overflow-hidden group hover:border-cyan-500/40 transition-all">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              Chất Lượng Dữ Liệu Nguồn
-            </span>
-            <div className="flex size-9 items-center justify-center rounded-lg bg-cyan-50 text-cyan-600 dark:bg-cyan-950/60 dark:text-cyan-400">
-              <Activity className="size-4.5" />
-            </div>
-          </div>
-          <div className="space-y-1">
-            <h3 className="text-2xl font-black text-foreground">
-              {totalDatasets === 0 ? "--" : `${avgHealthScore}/100`}
-            </h3>
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
-              {totalDatasets === 0 ? (
-                <span>Chưa có tệp để đánh giá</span>
-              ) : (
-                <span className="text-cyan-600 dark:text-cyan-400 font-semibold">
-                  {avgHealthScore >= 90 ? "Độ sạch dữ liệu đạt chuẩn cao" : "Cần tự động làm sạch"}
-                </span>
-              )}
-            </div>
-          </div>
-          <div className="w-full bg-muted/60 h-1.5 rounded-full overflow-hidden">
-            <div
-              className="bg-cyan-500 h-full rounded-full transition-all"
-              style={{ width: `${avgHealthScore}%` }}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Visual Analytics Overview Chart & Data Hub Quick View */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left 2 Cols: Monthly Trend Visualization */}
-        <div className="lg:col-span-2 rounded-2xl border bg-card p-6 shadow-sm space-y-5">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-4">
-            <div>
-              <h2 className="text-base font-bold text-foreground flex items-center gap-2">
-                <BarChart3 className="size-5 text-blue-600 dark:text-blue-400" />
-                Diễn Biến Dữ Liệu & Chỉ Số Doanh Nghiệp
-              </h2>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Tổng hợp tình trạng các tệp báo cáo kinh doanh được nạp vào hệ thống
-              </p>
-            </div>
-
-            {totalDatasets > 0 && (
-              <div className="flex items-center gap-3 text-xs">
-                <Link to="/forecast">
-                  <Button size="sm" variant="outline" className="gap-1.5 text-xs h-8">
-                    <TrendingUp className="size-3.5 text-primary" /> Mở Studio Dự Báo ML
-                  </Button>
-                </Link>
-              </div>
-            )}
-          </div>
-
-          {/* Dynamic Content: Empty State when 0 files, or Dataset Summary when files exist */}
-          {totalDatasets === 0 ? (
-            <div className="flex flex-col items-center justify-center p-8 text-center space-y-3 h-56">
-              <div className="size-12 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-600 dark:text-blue-400">
-                <BarChart3 className="size-6" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="font-semibold text-sm text-foreground">Kho Dữ Liệu Đang Trống</h3>
-                <p className="text-xs text-muted-foreground max-w-md">
-                  Chưa có tệp dữ liệu kinh doanh nào được nạp. Hãy tải lên tệp Excel (.xlsx) hoặc CSV đầu tiên để hệ thống tự động bóc tách chỉ số và trực quan hóa biểu đồ thực tế.
-                </p>
-              </div>
-              <Link to="/datasets">
-                <Button size="sm" variant="default" className="gap-1.5 text-xs font-semibold shadow-sm">
-                  <Database className="size-3.5" /> Nạp tệp dữ liệu ngay
-                </Button>
-              </Link>
-            </div>
-          ) : (
-            <div className="space-y-4 pt-2">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {datasets.slice(0, 4).map((d) => (
-                  <div
-                    key={d.id}
-                    className="p-3.5 rounded-xl border bg-muted/20 flex flex-col justify-between space-y-2 hover:bg-muted/40 transition-colors"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold text-xs text-foreground truncate max-w-[200px]">
-                        {d.filename}
-                      </span>
-                      <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-500 border-emerald-500/30">
-                        {d.status === "ready" ? "Đã sẵn sàng" : d.status}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center justify-between text-[11px] text-muted-foreground font-mono">
-                      <span>{d.row_count.toLocaleString()} dòng • {d.column_count} cột</span>
-                      <span>v{d.version}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="p-3 rounded-lg bg-primary/5 border border-primary/20 flex items-center justify-between">
-                <span className="text-xs text-foreground/90">
-                  Đã sẵn sàng {totalDatasets} tệp dữ liệu ({totalRecords.toLocaleString()} dòng). Hãy sử dụng Trợ lý AI bên dưới để ra lệnh phân tích tức thì.
-                </span>
-                <Link to="/forecast">
-                  <Button size="sm" variant="ghost" className="text-xs text-primary hover:text-primary gap-1">
-                    Chạy dự báo <ArrowRight className="size-3.5" />
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Right 1 Col: Quick Data Hub Status */}
-        <div className="rounded-2xl border bg-card p-6 shadow-sm flex flex-col justify-between space-y-4">
-          <div className="space-y-3">
-            <div className="flex items-center justify-between border-b pb-3">
-              <h2 className="text-base font-bold text-foreground flex items-center gap-2">
-                <Database className="size-4.5 text-indigo-500" />
-                Kho Tệp Đang Khai Thác
-              </h2>
-              <Link to="/datasets" className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-0.5">
-                Xem tất cả <ArrowRight className="size-3" />
-              </Link>
-            </div>
-
-            {loading ? (
-              <p className="text-xs text-muted-foreground py-4 text-center">Đang nạp dữ liệu...</p>
-            ) : datasets.length === 0 ? (
-              <div className="py-6 text-center space-y-2">
-                <p className="text-xs text-muted-foreground">Kho dữ liệu hiện đang trống.</p>
-                <Link to="/datasets">
-                  <Button size="sm" variant="outline" className="text-xs">
-                    Tải tệp Excel/CSV lên
-                  </Button>
-                </Link>
-              </div>
-            ) : (
-              <div className="space-y-2.5">
-                {datasets.slice(0, 3).map((item) => (
-                  <div key={item.id} className="flex items-center justify-between p-2.5 rounded-xl border bg-muted/30 hover:bg-muted/50 transition-colors">
-                    <div className="min-w-0 pr-2">
-                      <p className="text-xs font-semibold text-foreground truncate">{item.filename}</p>
-                      <p className="text-[10px] text-muted-foreground font-mono">
-                        v{item.version} • {item.row_count} dòng • {item.column_count} cột
-                      </p>
-                    </div>
-                    <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 shrink-0 font-medium">
-                      Sẵn sàng
-                    </Badge>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="rounded-xl border border-blue-500/20 bg-blue-50/30 dark:bg-blue-950/20 p-3.5 space-y-1.5">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-blue-700 dark:text-blue-300">
-              <Sparkles className="size-3.5" /> Trợ Lý Thông Minh Sẵn Sàng
-            </div>
-            <p className="text-[11px] text-muted-foreground leading-relaxed">
-              Bạn có thể sử dụng khung điều khiển AI phía dưới để đặt câu hỏi trực tiếp trên bất kỳ tệp dữ liệu kinh doanh nào.
+    <div className="min-w-0 space-y-10 pb-10">
+      <section className="finai-dashboard-hero overflow-hidden" aria-labelledby="dashboard-welcome">
+        <div className="finai-dashboard-copy relative z-10 flex min-h-[430px] flex-col justify-between p-6 sm:p-9 xl:p-12">
+          <div>
+            <h1 id="dashboard-welcome" className="finai-eyebrow text-[#f5c579]">Tổng quan</h1>
+            <h2 className="max-w-2xl text-3xl leading-[1.08] font-semibold tracking-[-.045em] text-white sm:text-5xl">
+              Chào {currentUser?.full_name || currentUser?.email?.split("@")[0]}, hôm nay bạn muốn hiểu điều gì từ dữ liệu?
+            </h2>
+            <p className="mt-5 max-w-xl text-sm leading-7 text-white/75 sm:text-base">
+              Bắt đầu từ một bảng dữ liệu, đặt câu hỏi bằng tiếng Việt và giữ mọi kết quả trong cùng một luồng làm việc.
             </p>
           </div>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Button asChild size="lg" className="bg-[#f5c579] text-[#163844] hover:bg-[#ffd99c]">
+              <a href="#phan-tich"><MessageSquareText className="size-4" /> Bắt đầu phân tích</a>
+            </Button>
+            <Button asChild size="lg" variant="outline" className="border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white">
+              <Link to="/datasets"><Database className="size-4" /> Xem kho dữ liệu</Link>
+            </Button>
+          </div>
         </div>
+        <div className="finai-dashboard-art relative min-h-[290px] lg:min-h-full">
+          <img src="/images/finai-data-story.png" alt="Minh họa hành trình từ bảng dữ liệu đến quyết định" className="absolute inset-0 size-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#123946] via-[#123946]/20 to-transparent lg:from-[#123946]/25" />
+          <div className="absolute right-5 bottom-5 left-5 rounded-2xl border border-white/25 bg-white/85 p-4 text-[#183044] shadow-xl backdrop-blur-md sm:right-8 sm:bottom-8 sm:left-auto sm:w-[310px]">
+            <div className="flex items-center justify-between gap-4"><span className="text-xs font-semibold tracking-wide uppercase">Dữ liệu hiện có</span><Database className="size-4 text-[#0f766e]" /></div>
+            <p className="mt-3 text-3xl font-semibold tracking-tight">{totalDatasets} <span className="text-sm font-medium text-[#607584]">tệp dữ liệu</span></p>
+            <p className="mt-1 text-xs text-[#607584]">{totalRecords.toLocaleString()} bản ghi · {formatFileSize(totalBytes)}</p>
+          </div>
+        </div>
+      </section>
+
+      <section className="finai-insight-strip" aria-label="Tổng quan dữ liệu">
+        {[
+          { icon: Database, label: "Nguồn dữ liệu", value: `${totalDatasets} tệp`, note: `${formatFileSize(totalBytes)} đã lưu` },
+          { icon: Layers, label: "Cột dữ liệu số", value: totalDatasets === 0 ? "—" : totalNumericCols, note: "Nhận diện từ cấu trúc tệp" },
+          { icon: Activity, label: "Chất lượng dữ liệu", value: totalDatasets === 0 ? "—" : `${avgHealthScore}/100`, note: "Theo metadata hiện có" },
+          { icon: TrendingUp, label: "Dữ liệu cho dự báo", value: totalDatasets === 0 ? "—" : totalDatasets, note: totalDatasets === 0 ? "Thêm tệp để bắt đầu" : "Nguồn có thể lựa chọn" },
+        ].map(({ icon: Icon, label, value, note }) => (
+          <div key={label} className="finai-insight-item">
+            <span className="finai-insight-icon"><Icon className="size-5" /></span>
+            <div className="min-w-0"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 text-2xl font-semibold tracking-tight">{value}</p><p className="mt-1 truncate text-xs text-muted-foreground">{note}</p></div>
+          </div>
+        ))}
+      </section>
+
+      <div className="grid items-stretch gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,.75fr)]">
+        <section className="finai-data-shelf">
+          <div className="flex flex-wrap items-end justify-between gap-4 border-b px-5 py-5 sm:px-7">
+            <div><p className="finai-eyebrow">Gần đây</p><h2 className="text-xl font-semibold">Những tệp bạn đang làm việc</h2></div>
+            <Link to="/datasets" className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline">Đi tới kho dữ liệu <ArrowRight className="size-4" /></Link>
+          </div>
+          {loading ? <div className="p-10 text-center text-sm text-muted-foreground" role="status">Đang tải dữ liệu…</div> : totalDatasets === 0 ? (
+            <div className="grid min-h-[280px] place-items-center px-6 py-10 text-center">
+              <div><span className="mx-auto flex size-16 items-center justify-center rounded-[22px] bg-secondary text-primary"><FileSpreadsheet className="size-7" /></span><h3 className="mt-5 text-lg font-semibold">Bắt đầu với bảng dữ liệu đầu tiên</h3><p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">Thêm CSV hoặc Excel để xem cấu trúc, chọn cột và đặt câu hỏi.</p><Button asChild className="mt-5"><Link to="/datasets">Thêm dữ liệu <ArrowRight className="size-4" /></Link></Button></div>
+            </div>
+          ) : <div className="grid gap-px bg-border sm:grid-cols-2">{datasets.slice(0, 4).map((d, index) => (
+            <div key={d.id} className="group min-w-0 bg-card p-5 transition-colors hover:bg-muted/30 sm:p-6">
+              <div className="flex items-start justify-between gap-3"><span className={`flex size-11 items-center justify-center rounded-2xl ${index % 2 === 0 ? "bg-[#e4f2ee] text-[#0f766e]" : "bg-[#fbedd7] text-[#9b6428]"}`}><BarChart3 className="size-5" /></span><Badge variant="outline" className="text-xs">{d.status === "ready" ? "Sẵn sàng" : d.status}</Badge></div>
+              <p className="mt-6 break-all font-semibold leading-6">{d.filename}</p>
+              <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground"><span>{d.row_count.toLocaleString()} dòng</span><span>{d.column_count} cột</span><span>Phiên bản {d.version}</span></div>
+            </div>
+          ))}</div>}
+        </section>
+
+        <aside className="finai-next-step flex flex-col justify-between overflow-hidden p-6 sm:p-8">
+          <div><span className="flex size-12 items-center justify-center rounded-2xl bg-[#f5c579] text-[#183044]"><TrendingUp className="size-5" /></span><p className="finai-eyebrow mt-8 text-[#f5c579]">Khám phá tiếp</p><h2 className="text-2xl font-semibold tracking-tight text-white">Nhìn xa hơn từ chuỗi dữ liệu của bạn.</h2><p className="mt-4 text-sm leading-7 text-white/70">Dùng dữ liệu theo thời gian để xem xu hướng hoặc tìm những nhóm có đặc điểm tương đồng.</p></div>
+          <Button asChild variant="outline" className="mt-8 w-full border-white/25 bg-white/10 text-white hover:bg-white/20 hover:text-white"><Link to="/forecast">Mở dự báo & phân nhóm <ArrowUpRight className="size-4" /></Link></Button>
+        </aside>
       </div>
 
-      {/* Main AI Data Analytics Terminal Component */}
-      <DataAnalyzer />
+      <section id="phan-tich" className="scroll-mt-24 space-y-5">
+        <PageHeading eyebrow="Không gian phân tích" title="Đặt câu hỏi cho dữ liệu"
+          description="Một quy trình rõ ràng từ chọn nguồn, thu hẹp phạm vi đến đọc kết quả và biểu đồ." />
+        <DataAnalyzer />
+      </section>
     </div>
   )
 }

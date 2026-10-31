@@ -93,12 +93,12 @@ const AddUser = () => {
       <DialogTrigger asChild>
         <Button className="my-4">
           <Plus className="mr-2" />
-          Add User
+          Thêm người dùng
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Add User</DialogTitle>
+          <DialogTitle>Thêm người dùng</DialogTitle>
           <DialogDescription>
             Fill in the form below to add a new user to the system.
           </DialogDescription>
@@ -132,7 +132,7 @@ const AddUser = () => {
                 name="full_name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Full Name</FormLabel>
+                    <FormLabel>Họ và tên</FormLabel>
                     <FormControl>
                       <Input placeholder="Full name" type="text" {...field} />
                     </FormControl>
@@ -220,11 +220,11 @@ const AddUser = () => {
             <DialogFooter>
               <DialogClose asChild>
                 <Button variant="outline" disabled={mutation.isPending}>
-                  Cancel
+                  Hủy
                 </Button>
               </DialogClose>
               <LoadingButton type="submit" loading={mutation.isPending}>
-                Save
+                Lưu thay đổi
               </LoadingButton>
             </DialogFooter>
           </form>

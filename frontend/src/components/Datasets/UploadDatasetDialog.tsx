@@ -83,8 +83,8 @@ export function UploadDatasetDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[520px]">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-xl font-bold">
-            <div className="flex size-8 items-center justify-center rounded-lg bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400">
+          <DialogTitle className="flex items-center gap-2 text-xl font-semibold">
+            <div className="flex size-8 items-center justify-center rounded-lg bg-primary/5 text-primary dark:bg-primary/10 dark:text-primary">
               <FileSpreadsheet className="size-5" />
             </div>
             Tải Lên Tệp Dữ Liệu Kinh Doanh
@@ -118,24 +118,24 @@ export function UploadDatasetDialog({
               onClick={() => fileInputRef.current?.click()}
               className={`flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-8 text-center transition-all cursor-pointer ${
                 isDragging
-                  ? "border-blue-500 bg-blue-50/50 dark:bg-blue-950/20"
+                  ? "border-primary/20 bg-primary/5 dark:bg-primary/10"
                   : "border-border hover:border-blue-400 hover:bg-muted/40"
               }`}
             >
-              <div className="flex size-14 items-center justify-center rounded-full bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400 mb-3 shadow-inner">
+              <div className="flex size-14 items-center justify-center rounded-full bg-primary/5 text-primary dark:bg-primary/10 dark:text-primary mb-3 shadow-inner">
                 <UploadCloud className="size-7" />
               </div>
               <p className="text-sm font-semibold text-foreground">
-                Kéo thả tệp vào đây hoặc <span className="text-blue-600 dark:text-blue-400 underline">duyệt chọn tệp</span>
+                Kéo thả tệp vào đây hoặc <span className="text-primary dark:text-primary underline">duyệt chọn tệp</span>
               </p>
               <p className="text-xs text-muted-foreground mt-1">
                 Hỗ trợ tệp tối đa 25MB (.csv, .xlsx, .xls)
               </p>
             </div>
           ) : (
-            <div className="flex items-center justify-between rounded-xl border border-blue-500/30 bg-blue-50/40 p-4 dark:bg-blue-950/20">
+            <div className="flex items-center justify-between rounded-xl border border-primary/20 bg-primary/5 p-4 dark:bg-primary/10">
               <div className="flex items-center gap-3">
-                <div className="flex size-10 items-center justify-center rounded-lg bg-blue-600 text-white shadow-sm">
+                <div className="flex size-10 items-center justify-center rounded-lg bg-primary text-white shadow-sm">
                   <FileSpreadsheet className="size-6" />
                 </div>
                 <div>
@@ -190,7 +190,7 @@ export function UploadDatasetDialog({
               type="submit"
               loading={isUploading}
               disabled={!file || isUploading}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
+              className="bg-primary hover:bg-blue-700 text-white"
             >
               Tải Lên Kho Dữ Liệu
             </LoadingButton>

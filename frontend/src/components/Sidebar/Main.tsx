@@ -43,9 +43,10 @@ export function Main({ items }: MainProps) {
                 <SidebarMenuButton
                   tooltip={item.title}
                   isActive={isActive}
+                  className="finai-nav-item"
                   asChild
                 >
-                  <RouterLink to={item.path} onClick={handleMenuClick}>
+                  <RouterLink to={item.path} onClick={handleMenuClick} aria-current={isActive ? "page" : undefined}>
                     <item.icon />
                     <span>{item.title}</span>
                   </RouterLink>

@@ -1,21 +1,8 @@
+import { ResultFigure } from "@/components/Common/ResultFigure"
+import { PageHeading } from "@/components/Common/PageHeading"
 import { useState, useEffect } from "react"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
-import {
-  TrendingUp,
-  BrainCircuit,
-  Sparkles,
-  Download,
-  RefreshCw,
-  ArrowUpRight,
-  ArrowDownRight,
-  Info,
-  CheckCircle2,
-  Table as TableIcon,
-  BarChart3,
-  Sliders,
-  Database,
-  FileSpreadsheet,
-} from "lucide-react"
+import { TrendingUp, Layers as BrainCircuit, ChartNoAxesCombined as Sparkles, Download, RefreshCw, ArrowUpRight, ArrowDownRight, Info, CheckCircle2, Table as TableIcon, BarChart3, Sliders, Database, FileSpreadsheet } from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -211,43 +198,27 @@ function ForecastPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6 p-4 md:p-8 max-w-7xl mx-auto w-full">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pb-2 border-b border-border">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Dự Báo Tài Chính & Phân Tích Định Lượng</h1>
-            <Badge variant="outline" className="bg-emerald-500/10 text-emerald-500 border-emerald-500/30 gap-1 text-xs">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              Machine Learning Engine
-            </Badge>
-          </div>
-          <p className="text-muted-foreground text-sm mt-1">
-            Mô hình hóa chuỗi thời gian, dự phóng chỉ số kinh doanh và phân khúc định lượng thông minh
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
+    <div className="flex min-w-0 flex-col gap-7 pb-8 w-full">
+      <PageHeading eyebrow="Từ dữ liệu đến góc nhìn" title="Dự báo & phân nhóm"
+        description="Khám phá xu hướng theo thời gian và những nhóm có đặc điểm tương đồng."
+        action={<div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" size="sm" onClick={loadDatasets} disabled={isLoadingDatasets} className="gap-2">
-            <RefreshCw className={`h-4 w-4 ${isLoadingDatasets ? "animate-spin" : ""}`} />
-            Làm mới nguồn dữ liệu
+            <RefreshCw className={`h-4 w-4 ${isLoadingDatasets ? "animate-spin" : ""}`} /> Làm mới nguồn dữ liệu
           </Button>
           <Button variant="default" size="sm" onClick={() => navigate({ to: "/datasets" })} className="gap-2">
-            <Database className="h-4 w-4" />
-            Quản lý kho dữ liệu
+            <Database className="h-4 w-4" /> Quản lý kho dữ liệu
           </Button>
-        </div>
-      </div>
+        </div>} />
 
       {/* Dataset Picker Bar */}
-      <Card className="border-border bg-card/60 backdrop-blur-sm shadow-sm">
+      <Card className="border-border bg-card  shadow-sm">
         <CardContent className="p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="flex items-center gap-3 w-full md:w-auto">
             <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
               <FileSpreadsheet className="h-5 w-5" />
             </div>
             <div className="flex flex-col">
-              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tệp Dữ Liệu Nguồn</span>
+              <span className="text-xs font-semibold tracking-normal text-muted-foreground">Tệp Dữ Liệu Nguồn</span>
               {datasets.length === 0 && !isLoadingDatasets ? (
                 <span className="text-sm text-destructive">Chưa có tệp dữ liệu. Vui lòng tải file lên kho dữ liệu.</span>
               ) : (
@@ -271,7 +242,7 @@ function ForecastPage() {
 
           <div className="flex items-center gap-4 text-xs text-muted-foreground">
             <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-blue-500" />
+              <span className="h-2 w-2 rounded-full bg-primary" />
               {numericColumns.length} Cột chỉ số tài chính
             </span>
             <span className="flex items-center gap-1.5">
@@ -287,11 +258,11 @@ function ForecastPage() {
         <TabsList className="grid grid-cols-2 max-w-md bg-muted/60 p-1">
           <TabsTrigger value="forecast" className="gap-2 text-xs md:text-sm">
             <TrendingUp className="h-4 w-4" />
-            Dự Báo Chuỗi Thời Gian
+            Dự báo theo thời gian
           </TabsTrigger>
           <TabsTrigger value="clustering" className="gap-2 text-xs md:text-sm">
             <BrainCircuit className="h-4 w-4" />
-            Phân Cụm Học Máy (K-Means)
+            Phân nhóm dữ liệu (K-Means)
           </TabsTrigger>
         </TabsList>
 
@@ -315,7 +286,7 @@ function ForecastPage() {
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-muted-foreground flex items-center justify-between">
                     <span>Chỉ tiêu tài chính mục tiêu</span>
-                    <span className="text-[10px] text-primary">Biến Y</span>
+                    <span className="text-xs text-primary">Biến Y</span>
                   </label>
                   <select
                     value={targetColumn}
@@ -338,7 +309,7 @@ function ForecastPage() {
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-muted-foreground flex items-center justify-between">
                     <span>Cột mốc thời gian (Tùy chọn)</span>
-                    <span className="text-[10px] text-muted-foreground">Trục X</span>
+                    <span className="text-xs text-muted-foreground">Trục X</span>
                   </label>
                   <select
                     value={dateColumn}
@@ -429,33 +400,33 @@ function ForecastPage() {
                 <div className="space-y-4">
                   {/* KPI Cards */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <Card className="border-border p-3.5 bg-card/60 backdrop-blur-sm">
-                      <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Sai số MAE</span>
-                      <div className="text-xl font-bold mt-1 text-foreground">
+                    <Card className="border-border p-3.5 bg-card ">
+                      <span className="text-xs font-medium text-muted-foreground tracking-normal">Sai số MAE</span>
+                      <div className="text-xl font-semibold mt-1 text-foreground">
                         ±{forecastResult.metrics.mae.toLocaleString()}
                       </div>
-                      <span className="text-[10px] text-muted-foreground">Độ lệch tuyệt đối trung bình</span>
+                      <span className="text-xs text-muted-foreground">Độ lệch tuyệt đối trung bình</span>
                     </Card>
 
-                    <Card className="border-border p-3.5 bg-card/60 backdrop-blur-sm">
-                      <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Sai số RMSE</span>
-                      <div className="text-xl font-bold mt-1 text-foreground">
+                    <Card className="border-border p-3.5 bg-card ">
+                      <span className="text-xs font-medium text-muted-foreground tracking-normal">Sai số RMSE</span>
+                      <div className="text-xl font-semibold mt-1 text-foreground">
                         {forecastResult.metrics.rmse.toLocaleString()}
                       </div>
-                      <span className="text-[10px] text-muted-foreground">Căn bậc hai sai số bình phương</span>
+                      <span className="text-xs text-muted-foreground">Căn bậc hai sai số bình phương</span>
                     </Card>
 
-                    <Card className="border-border p-3.5 bg-card/60 backdrop-blur-sm">
-                      <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Độ phù hợp R²</span>
-                      <div className="text-xl font-bold mt-1 text-emerald-500">
+                    <Card className="border-border p-3.5 bg-card ">
+                      <span className="text-xs font-medium text-muted-foreground tracking-normal">Độ phù hợp R²</span>
+                      <div className="text-xl font-semibold mt-1 text-emerald-500">
                         {Math.round(forecastResult.metrics.r2 * 100)}%
                       </div>
-                      <span className="text-[10px] text-muted-foreground">Khả năng giải thích phương sai</span>
+                      <span className="text-xs text-muted-foreground">Khả năng giải thích phương sai</span>
                     </Card>
 
-                    <Card className="border-border p-3.5 bg-card/60 backdrop-blur-sm">
-                      <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Tăng trưởng dự phóng</span>
-                      <div className={`text-xl font-bold mt-1 flex items-center gap-1 ${forecastResult.growth_rate_pct >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
+                    <Card className="border-border p-3.5 bg-card ">
+                      <span className="text-xs font-medium text-muted-foreground tracking-normal">Tăng trưởng dự phóng</span>
+                      <div className={`text-xl font-semibold mt-1 flex items-center gap-1 ${forecastResult.growth_rate_pct >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
                         {forecastResult.growth_rate_pct >= 0 ? (
                           <ArrowUpRight className="h-5 w-5" />
                         ) : (
@@ -463,7 +434,7 @@ function ForecastPage() {
                         )}
                         {forecastResult.growth_rate_pct > 0 ? `+${forecastResult.growth_rate_pct}%` : `${forecastResult.growth_rate_pct}%`}
                       </div>
-                      <span className="text-[10px] text-muted-foreground">So với kỳ cơ sở gần nhất</span>
+                      <span className="text-xs text-muted-foreground">So với kỳ cơ sở gần nhất</span>
                     </Card>
                   </div>
 
@@ -507,12 +478,8 @@ function ForecastPage() {
                     Tải Biểu Đồ PNG
                   </Button>
                 </CardHeader>
-                <CardContent className="p-4 flex items-center justify-center bg-slate-950/80">
-                  <img
-                    src={forecastResult.chart_image}
-                    alt="Biểu đồ dự báo tài chính"
-                    className="rounded-lg max-h-[460px] w-auto object-contain shadow-md"
-                  />
+                <CardContent className="p-4 flex items-center justify-center bg-muted/30">
+                  <ResultFigure src={forecastResult.chart_image} alt="Biểu đồ dự báo tài chính" />
                 </CardContent>
               </Card>
 
@@ -544,7 +511,7 @@ function ForecastPage() {
                             <span className="h-2 w-2 rounded-full bg-orange-500" />
                             {row.period}
                           </TableCell>
-                          <TableCell className="text-right font-bold text-primary text-sm">
+                          <TableCell className="text-right font-semibold text-primary text-sm">
                             {row.forecast_value.toLocaleString()}
                           </TableCell>
                           <TableCell className="text-right text-xs text-muted-foreground">
@@ -618,7 +585,7 @@ function ForecastPage() {
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-muted-foreground flex items-center justify-between">
                     <span>Đặc trưng định lượng phân cụm (Tối thiểu 2)</span>
-                    <span className="text-[10px] text-primary">{selectedFeatures.length} đã chọn</span>
+                    <span className="text-xs text-primary">{selectedFeatures.length} đã chọn</span>
                   </label>
                   <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto p-2 rounded-md border border-input bg-muted/20">
                     {numericColumns.map((col) => {
@@ -691,9 +658,9 @@ function ForecastPage() {
                   {/* Quality Score Bar */}
                   <div className="flex items-center justify-between p-4 rounded-lg bg-card border border-border shadow-sm">
                     <div>
-                      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Chỉ Số Silhouette Score</span>
+                      <span className="text-xs font-semibold tracking-normal text-muted-foreground">Chỉ Số Silhouette Score</span>
                       <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-2xl font-bold text-foreground">{clusteringResult.silhouette_score}</span>
+                        <span className="text-2xl font-semibold text-foreground">{clusteringResult.silhouette_score}</span>
                         <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 text-xs">
                           Chất lượng: {clusteringResult.quality_rating}
                         </Badge>
@@ -708,17 +675,17 @@ function ForecastPage() {
                   {/* Cluster Persona Cards */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {clusteringResult.cluster_stats.map((c) => (
-                      <Card key={c.cluster_id} className="border-border p-3.5 bg-card/60 backdrop-blur-sm">
+                      <Card key={c.cluster_id} className="border-border p-3.5 bg-card ">
                         <div className="flex items-center justify-between pb-1">
-                          <span className="text-xs font-bold text-foreground">{c.business_label}</span>
-                          <Badge variant="secondary" className="text-[11px]">
+                          <span className="text-xs font-semibold text-foreground">{c.business_label}</span>
+                          <Badge variant="secondary" className="text-xs">
                             {c.count} bản ghi ({c.percentage}%)
                           </Badge>
                         </div>
-                        <p className="text-[11px] text-muted-foreground leading-relaxed mt-1">
+                        <p className="text-xs text-muted-foreground leading-relaxed mt-1">
                           {c.description}
                         </p>
-                        <div className="mt-2 pt-2 border-t border-border/50 grid grid-cols-2 gap-1.5 text-[11px]">
+                        <div className="mt-2 pt-2 border-t border-border/50 grid grid-cols-2 gap-1.5 text-xs">
                           {Object.entries(c.feature_means).map(([feat, val]) => (
                             <div key={feat} className="flex justify-between">
                               <span className="text-muted-foreground truncate">{feat}:</span>
@@ -758,12 +725,8 @@ function ForecastPage() {
                     Tải Biểu Đồ PNG
                   </Button>
                 </CardHeader>
-                <CardContent className="p-4 flex items-center justify-center bg-slate-950/80">
-                  <img
-                    src={clusteringResult.chart_image}
-                    alt="Biểu đồ phân cụm K-Means"
-                    className="rounded-lg max-h-[460px] w-auto object-contain shadow-md"
-                  />
+                <CardContent className="p-4 flex items-center justify-center bg-muted/30">
+                  <ResultFigure src={clusteringResult.chart_image} alt="Biểu đồ phân cụm K-Means" />
                 </CardContent>
               </Card>
 
@@ -794,7 +757,7 @@ function ForecastPage() {
                             {Object.entries(row).map(([k, val]: any) => (
                               <TableCell key={k} className="text-xs">
                                 {k === "cluster_label" ? (
-                                  <Badge variant="outline" className="text-[10px] font-normal">
+                                  <Badge variant="outline" className="text-xs font-normal">
                                     {val}
                                   </Badge>
                                 ) : typeof val === "number" ? (

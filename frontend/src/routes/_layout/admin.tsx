@@ -1,3 +1,4 @@
+import { PageHeading } from "@/components/Common/PageHeading"
 import { useSuspenseQuery } from "@tanstack/react-query"
 import { createFileRoute, redirect } from "@tanstack/react-router"
 import { Suspense } from "react"
@@ -59,15 +60,7 @@ function UsersTable() {
 function Admin() {
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Users</h1>
-          <p className="text-muted-foreground">
-            Manage user accounts and permissions
-          </p>
-        </div>
-        <AddUser />
-      </div>
+      <PageHeading title="Quản lý người dùng" description="Tài khoản và quyền truy cập trong không gian làm việc." action={<AddUser />} />
       <UsersTable />
     </div>
   )

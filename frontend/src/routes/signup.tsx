@@ -51,7 +51,7 @@ export const Route = createFileRoute("/signup")({
   head: () => ({
     meta: [
       {
-        title: "Sign Up - FastAPI Template",
+        title: "Đăng ký - FinAI",
       },
     ],
   }),
@@ -87,7 +87,7 @@ function SignUp() {
           className="flex flex-col gap-6"
         >
           <div className="flex flex-col items-center gap-2 text-center">
-            <h1 className="text-2xl font-bold">Create an account</h1>
+            <h1 className="text-2xl font-semibold">Tạo tài khoản</h1>
           </div>
 
           <div className="grid gap-4">
@@ -96,7 +96,7 @@ function SignUp() {
               name="full_name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Full Name</FormLabel>
+                  <FormLabel>Họ và tên</FormLabel>
                   <FormControl>
                     <Input
                       data-testid="full-name-input"
@@ -134,7 +134,7 @@ function SignUp() {
               name="password"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Password</FormLabel>
+                  <FormLabel>Mật khẩu</FormLabel>
                   <FormControl>
                     <PasswordInput
                       data-testid="password-input"
@@ -152,7 +152,7 @@ function SignUp() {
               name="confirm_password"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Confirm Password</FormLabel>
+                  <FormLabel>Xác nhận mật khẩu</FormLabel>
                   <FormControl>
                     <PasswordInput
                       data-testid="confirm-password-input"
@@ -170,14 +170,14 @@ function SignUp() {
               className="w-full"
               loading={signUpMutation.isPending}
             >
-              Sign Up
+              Đăng ký
             </LoadingButton>
           </div>
 
           <div className="text-center text-sm">
-            Already have an account?{" "}
+            Bạn đã có tài khoản?{" "}
             <RouterLink to="/login" className="underline underline-offset-4">
-              Log in
+              Đăng nhập
             </RouterLink>
           </div>
         </form>

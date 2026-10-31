@@ -1,3 +1,4 @@
+import { PageHeading } from "@/components/Common/PageHeading"
 import { createFileRoute } from "@tanstack/react-router"
 
 import ChangePassword from "@/components/UserSettings/ChangePassword"
@@ -7,9 +8,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import useAuth from "@/hooks/useAuth"
 
 const tabsConfig = [
-  { value: "my-profile", title: "My profile", component: UserInformation },
-  { value: "password", title: "Password", component: ChangePassword },
-  { value: "danger-zone", title: "Danger zone", component: DeleteAccount },
+  { value: "my-profile", title: "Thông tin cá nhân", component: UserInformation },
+  { value: "password", title: "Mật khẩu", component: ChangePassword },
+  { value: "danger-zone", title: "Quản lý tài khoản", component: DeleteAccount },
 ]
 
 export const Route = createFileRoute("/_layout/settings")({
@@ -35,12 +36,7 @@ function UserSettings() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">User Settings</h1>
-        <p className="text-muted-foreground">
-          Manage your account settings and preferences
-        </p>
-      </div>
+      <PageHeading title="Cài đặt tài khoản" description="Thông tin cá nhân, mật khẩu và các tùy chọn tài khoản của bạn." />
 
       <Tabs defaultValue="my-profile">
         <TabsList>

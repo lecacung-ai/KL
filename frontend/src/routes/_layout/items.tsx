@@ -1,3 +1,4 @@
+import { PageHeading } from "@/components/Common/PageHeading"
 import { useSuspenseQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import { Search } from "lucide-react"
@@ -57,13 +58,7 @@ function ItemsTable() {
 function Items() {
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Items</h1>
-          <p className="text-muted-foreground">Create and manage your items</p>
-        </div>
-        <AddItem />
-      </div>
+      <PageHeading title="Danh mục" description="Tạo và quản lý các mục hiện có của bạn." action={<AddItem />} />
       <ItemsTable />
     </div>
   )

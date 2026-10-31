@@ -1,25 +1,7 @@
+import { ResultFigure } from "@/components/Common/ResultFigure"
 import { useState, useEffect } from "react"
 import axios from "axios"
-import {
-  Sparkles,
-  Send,
-  FileSpreadsheet,
-  Check,
-  Copy,
-  Code2,
-  Database,
-  TrendingUp,
-  SlidersHorizontal,
-  Upload,
-  BarChart3,
-  PieChart,
-  AlertCircle,
-  Download,
-  CheckCircle2,
-  ShieldCheck,
-  Loader2,
-  RotateCcw,
-} from "lucide-react"
+import { Send, FileSpreadsheet, Check, Copy, Code2, Database, TrendingUp, SlidersHorizontal, Upload, BarChart3, PieChart, AlertCircle, Download, CheckCircle2, ShieldCheck, Loader2, RotateCcw } from "lucide-react"
 import { toast } from "sonner"
 import { Link } from "@tanstack/react-router"
 
@@ -318,60 +300,39 @@ export default function DataAnalyzer() {
   }
 
   return (
-    <div className="mt-6 rounded-2xl border bg-card text-card-foreground shadow-sm overflow-hidden transition-all">
-      {/* Header Banner - Enterprise Professional */}
-      <div className="bg-gradient-to-r from-blue-600/10 via-indigo-600/10 to-cyan-500/10 p-6 border-b">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3.5">
-            <div className="flex size-11 items-center justify-center rounded-xl bg-blue-600 text-white shadow-md shadow-blue-500/20">
-              <Sparkles className="size-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2.5">
-                <h2 className="text-xl font-bold tracking-tight text-foreground">
-                  Trợ Lý Phân Tích Dữ Liệu Doanh Nghiệp
-                </h2>
-                <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 gap-1.5 text-xs font-semibold py-0.5 px-2.5">
-                  <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" /> Sẵn sàng phân tích
-                </Badge>
-              </div>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Xử lý ngôn ngữ tự nhiên, tự động suy luận dữ liệu kinh doanh và trực quan hóa báo cáo tài chính.
-              </p>
-            </div>
-          </div>
-
-          <Link to="/datasets">
-            <Button variant="outline" size="sm" className="gap-1.5 text-xs font-semibold h-9">
-              <Database className="size-3.5" /> Quản Lý Kho Dữ Liệu ({datasets.length})
-            </Button>
-          </Link>
+    <div className="finai-analyzer min-w-0 overflow-hidden rounded-[26px] text-card-foreground">
+      <div className="finai-analyzer-intro flex flex-wrap items-start justify-between gap-4 p-6 sm:p-8">
+        <div className="min-w-0 max-w-2xl">
+          <p className="finai-eyebrow text-[#f5c579]">Bắt đầu khám phá</p>
+          <h2 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">Bạn muốn tìm hiểu điều gì?</h2>
+          <p className="mt-3 max-w-xl text-sm leading-7 text-white/70">Đi theo ba bước: chọn nguồn dữ liệu, xác định phạm vi và đặt câu hỏi. Kết quả sẽ được giữ ngay trong không gian này.</p>
         </div>
+        <Button asChild variant="outline" size="sm" className="border-white/25 bg-white/10 text-white hover:bg-white/20 hover:text-white"><Link to="/datasets"><Database className="size-4" /> Kho dữ liệu ({datasets.length})</Link></Button>
       </div>
 
-      <div className="p-6 space-y-6">
+      <div className="finai-analyzer-workflow space-y-8 bg-card p-4 sm:p-7">
         {/* Step 1: Chọn nguồn dữ liệu */}
-        <div className="space-y-2.5">
+        <div className="space-y-4">
           <div className="flex items-center gap-2">
-            <span className="flex size-5 items-center justify-center rounded-md bg-blue-600/10 text-blue-600 dark:bg-blue-400/10 dark:text-blue-400 text-[11px] font-black">1</span>
-            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Chọn Nguồn Dữ Liệu Cần Phân Tích</span>
+            <span className="flex size-5 items-center justify-center rounded-md bg-blue-600/10 text-primary dark:bg-blue-400/10 dark:text-primary text-xs font-semibold">1</span>
+            <span className="text-xs font-semibold tracking-normal text-muted-foreground">Chọn dữ liệu</span>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {/* Cách 1: Chọn từ Kho Dữ Liệu */}
             <div
-              className={`rounded-xl border p-3.5 transition-all ${
+              className={`finai-source-option rounded-2xl border p-5 transition-colors ${
                 selectedDatasetId
-                  ? "border-blue-500/60 bg-blue-50/20 dark:bg-blue-950/20 shadow-sm"
+                  ? "border-primary/20 bg-primary/5 dark:bg-primary/10 shadow-sm"
                   : "border-border hover:border-muted-foreground/30 bg-muted/20"
               }`}
             >
               <div className="flex items-center justify-between mb-2">
                 <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                  <Database className="size-3.5 text-blue-500" /> Chọn từ Kho Dữ Liệu Doanh Nghiệp
+                  <Database className="size-3.5 text-primary" /> Chọn tệp đã lưu
                 </p>
                 {selectedDatasetId && (
-                  <Badge variant="outline" className="text-[10px] bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300 font-medium">
+                  <Badge variant="outline" className="text-xs bg-primary/5 text-primary dark:bg-primary/10 dark:text-blue-300 font-medium">
                     Đang chọn
                   </Badge>
                 )}
@@ -379,6 +340,7 @@ export default function DataAnalyzer() {
 
               {datasets.length > 0 ? (
                 <select
+                  aria-label="Chọn tệp đã lưu"
                   value={selectedDatasetId}
                   onChange={(e) => handleSelectExistingDataset(e.target.value)}
                   className="w-full h-9 rounded-lg border border-input bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
@@ -399,7 +361,7 @@ export default function DataAnalyzer() {
 
             {/* Cách 2: Tải file mới trực tiếp */}
             <div
-              className={`rounded-xl border p-3.5 transition-all ${
+              className={`finai-source-option rounded-2xl border p-5 transition-colors ${
                 file
                   ? "border-emerald-500/60 bg-emerald-50/20 dark:bg-emerald-950/20 shadow-sm"
                   : "border-border hover:border-muted-foreground/30 bg-muted/20"
@@ -407,29 +369,29 @@ export default function DataAnalyzer() {
             >
               <div className="flex items-center justify-between mb-2">
                 <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                  <FileSpreadsheet className="size-3.5 text-emerald-500" /> Tải Tệp Mới Từ Máy Tính
+                  <FileSpreadsheet className="size-3.5 text-emerald-500" /> Chọn tệp từ máy tính
                 </p>
                 {file && (
-                  <Badge variant="outline" className="text-[10px] bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-medium">
+                  <Badge variant="outline" className="text-xs bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-medium">
                     Tệp cục bộ
                   </Badge>
                 )}
               </div>
 
-              <label className="flex items-center justify-between gap-3 border border-dashed border-input hover:border-emerald-500 bg-background/60 hover:bg-muted/40 rounded-lg h-9 px-3 text-xs transition-colors cursor-pointer group">
+              <label className="flex min-h-12 items-center justify-between gap-3 border border-dashed border-input hover:border-emerald-500 bg-background/60 hover:bg-muted/40 rounded-lg h-9 px-3 text-xs transition-colors cursor-pointer group">
                 <div className="flex items-center gap-2 truncate">
                   <Upload className="size-3.5 text-muted-foreground group-hover:text-emerald-500 shrink-0" />
                   <span className="truncate text-foreground font-medium">
                     {file ? file.name : "Nhấp để chọn tệp .xlsx / .csv..."}
                   </span>
                 </div>
-                <span className="text-[10px] font-semibold bg-muted px-2 py-0.5 rounded text-muted-foreground group-hover:bg-emerald-50 group-hover:text-emerald-700 dark:group-hover:bg-emerald-950 dark:group-hover:text-emerald-300 shrink-0">
+                <span className="text-xs font-semibold bg-muted px-2 py-0.5 rounded text-muted-foreground group-hover:bg-emerald-50 group-hover:text-emerald-700 dark:group-hover:bg-emerald-950 dark:group-hover:text-emerald-300 shrink-0">
                   {file ? "Thay đổi" : "Duyệt tệp"}
                 </span>
                 <input
                   type="file"
                   accept=".csv, .xlsx, .xls"
-                  className="hidden"
+                  className="sr-only"
                   onChange={(e) => {
                     if (e.target.files && e.target.files[0]) {
                       handleLocalFileUpload(e.target.files[0])
@@ -447,24 +409,24 @@ export default function DataAnalyzer() {
             <div className="flex items-center gap-3">
               <div className="flex size-8 items-center justify-center rounded-lg bg-muted text-muted-foreground shrink-0">
                 {isInspecting ? (
-                  <Loader2 className="size-4 animate-spin text-blue-500" />
+                  <Loader2 className="size-4 animate-spin text-primary" />
                 ) : (
                   <SlidersHorizontal className="size-4" />
                 )}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="flex size-5 items-center justify-center rounded-md bg-blue-600/10 text-blue-600 dark:bg-blue-400/10 dark:text-blue-400 text-[11px] font-black shrink-0">2</span>
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-2">
+                  <span className="flex size-5 items-center justify-center rounded-md bg-blue-600/10 text-primary dark:bg-blue-400/10 dark:text-primary text-xs font-semibold shrink-0">2</span>
+                  <h4 className="text-xs font-semibold tracking-normal text-foreground flex items-center gap-2">
                     Phạm Vi Dữ Liệu Phân Tích (Chọn Cột)
                     {isInspecting && (
-                      <Badge variant="outline" className="text-[10px] bg-blue-50 text-blue-600 border-blue-200 animate-pulse">
+                      <Badge variant="outline" className="text-xs bg-primary/5 text-primary border-primary/20 ">
                         Đang quét cấu trúc cột...
                       </Badge>
                     )}
                   </h4>
                 </div>
-                <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
                   {isInspecting
                     ? "Đang tự động quét và phân loại các cột trong tệp..."
                     : "Chưa có nguồn dữ liệu. Hãy chọn tệp trong Kho dữ liệu hoặc tải tệp Excel/CSV lên ở Bước 1. Hệ thống sẽ hiển thị danh sách cột để bạn chọn lựa (mặc định phân tích toàn bộ nếu không chọn cụ thể)."}
@@ -476,15 +438,15 @@ export default function DataAnalyzer() {
           <div className="space-y-3 rounded-xl border bg-muted/20 p-4 transition-all">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-3">
               <div className="flex items-center gap-2">
-                <span className="flex size-5 items-center justify-center rounded-md bg-blue-600/10 text-blue-600 dark:bg-blue-400/10 dark:text-blue-400 text-[11px] font-black">2</span>
-                <div className="flex size-7 items-center justify-center rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400">
+                <span className="flex size-5 items-center justify-center rounded-md bg-blue-600/10 text-primary dark:bg-blue-400/10 dark:text-primary text-xs font-semibold">2</span>
+                <div className="flex size-7 items-center justify-center rounded-lg bg-primary/5 text-primary dark:bg-primary/10 dark:text-primary">
                   <SlidersHorizontal className="size-4" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">
+                  <h4 className="text-xs font-semibold tracking-normal text-foreground">
                     Phạm Vi Dữ Liệu Phân Tích (Chọn Cột)
                   </h4>
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-xs text-muted-foreground">
                     Bấm chọn các cột bạn cần AI tập trung phân tích. Mặc định sẽ phân tích trên toàn bộ các cột nếu không chọn cụ thể.
                   </p>
                 </div>
@@ -502,8 +464,8 @@ export default function DataAnalyzer() {
                     Đã chọn tất cả ({availableColumns.length} cột)
                   </Badge>
                 ) : (
-                  <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300 dark:bg-blue-950/60 dark:text-blue-300 text-xs font-semibold gap-1 py-1">
-                    <SlidersHorizontal className="size-3.5 text-blue-500" />
+                  <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 dark:bg-primary/10 dark:text-blue-300 text-xs font-semibold gap-1 py-1">
+                    <SlidersHorizontal className="size-3.5 text-primary" />
                     Đã chọn: {selectedScopeColumns.length} / {availableColumns.length} cột
                   </Badge>
                 )}
@@ -513,7 +475,7 @@ export default function DataAnalyzer() {
                   variant="outline"
                   size="sm"
                   onClick={selectAllScope}
-                  className="h-7 text-xs px-2.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950 font-medium"
+                  className="h-7 text-xs px-2.5 text-primary hover:text-primary hover:bg-primary/5 dark:hover:bg-primary/10 font-medium"
                 >
                   Chọn tất cả
                 </Button>
@@ -542,26 +504,26 @@ export default function DataAnalyzer() {
                     type="button"
                     onClick={() => toggleColumnScope(col.name)}
                     title={isDefaultActive ? "Đang áp dụng trong toàn bộ dữ liệu. Bấm để chỉ chọn cột này." : (isSelected ? "Bấm để bỏ chọn cột này." : "Bấm để thêm cột này.")}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${
+                    className={`flex min-h-10 max-w-full items-center gap-2 px-3 py-2 rounded-xl border text-xs font-medium transition-colors ${
                       isDefaultActive
-                        ? "border-border/80 bg-card hover:border-blue-400 hover:bg-blue-50/30 dark:hover:bg-blue-950/30 text-foreground"
+                        ? "border-border/80 bg-card hover:border-blue-400 hover:bg-primary/5 dark:hover:bg-primary/10 text-foreground"
                         : isSelected
-                        ? "border-blue-500 bg-blue-50/90 text-blue-900 dark:bg-blue-950/80 dark:text-blue-200 shadow-sm ring-1 ring-blue-500/20"
+                        ? "border-primary/20 bg-primary/5 text-blue-900 dark:bg-primary/10 dark:text-blue-200 shadow-sm ring-1 ring-blue-500/20"
                         : "border-border/50 bg-muted/20 text-muted-foreground/60 hover:border-muted-foreground/40 hover:text-foreground opacity-50"
                     }`}
                   >
-                    <div className={`size-3.5 rounded flex items-center justify-center border text-[9px] font-bold ${
+                    <div className={`size-3.5 rounded flex items-center justify-center border text-[9px] font-semibold ${
                       isDefaultActive
                         ? "border-emerald-500 bg-emerald-50 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400"
                         : isSelected
-                        ? "border-blue-600 bg-blue-600 text-white"
+                        ? "border-blue-600 bg-primary text-primary-foreground"
                         : "border-muted-foreground/40"
                     }`}>
                       {(isDefaultActive || isSelected) && "✓"}
                     </div>
-                    <span className="font-mono">{col.name}</span>
+                    <span className="min-w-0 max-w-[220px] break-all font-mono">{col.name}</span>
                     {col.typeCategory && (
-                      <Badge variant="secondary" className="text-[10px] py-0 px-1.5 h-4 font-normal">
+                      <Badge variant="secondary" className="text-xs py-0 px-1.5 h-4 font-normal">
                         {col.typeCategory}
                       </Badge>
                     )}
@@ -570,19 +532,19 @@ export default function DataAnalyzer() {
               })}
             </div>
 
-            <p className="text-[11px] text-muted-foreground flex items-center gap-1.5 pt-1 border-t">
+            <p className="text-xs text-muted-foreground flex items-center gap-1.5 pt-1 border-t">
               <span>💡 <strong>Quy tắc phạm vi:</strong> Bấm vào từng cột để chọn chỉ phân tích cột đó. Nếu không chọn cột nào (hoặc bấm nút "Mặc định"), AI sẽ phân tích trên toàn bộ bảng dữ liệu.</span>
             </p>
           </div>
         )}
 
         {/* Step 3: Nhập câu hỏi hoặc chọn câu hỏi mẫu */}
-        <div className="space-y-2.5">
+        <div className="space-y-4">
           <div className="flex items-center gap-2">
-            <span className="flex size-5 items-center justify-center rounded-md bg-blue-600/10 text-blue-600 dark:bg-blue-400/10 dark:text-blue-400 text-[11px] font-black">
+            <span className="flex size-5 items-center justify-center rounded-md bg-blue-600/10 text-primary dark:bg-blue-400/10 dark:text-primary text-xs font-semibold">
               3
             </span>
-            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Yêu Cầu Nghiệp Vụ Cần Phân Tích</span>
+            <span className="text-xs font-semibold tracking-normal text-muted-foreground">Đặt câu hỏi của bạn</span>
           </div>
 
           {/* Quick Prompt Pills with modern icons */}
@@ -594,17 +556,18 @@ export default function DataAnalyzer() {
                   key={idx}
                   type="button"
                   onClick={() => setQuery(p.query)}
-                  className="flex items-center gap-1.5 rounded-lg border bg-card px-3 py-1.5 text-xs text-muted-foreground transition-all hover:border-blue-500/50 hover:bg-blue-50/50 hover:text-blue-600 dark:hover:bg-blue-950/40 dark:hover:text-blue-300 shadow-sm"
+                  className="flex items-center gap-1.5 rounded-lg border bg-card px-3 py-1.5 text-xs text-muted-foreground transition-all hover:border-primary/20 hover:bg-primary/5 hover:text-primary dark:hover:bg-primary/10 dark:hover:text-blue-300 shadow-sm"
                 >
-                  <IconComponent className="size-3.5 text-blue-500/80 shrink-0" />
+                  <IconComponent className="size-3.5 text-primary shrink-0" />
                   <span>{p.label}</span>
                 </button>
               )
             })}
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-3 sm:flex-row">
             <input
+              aria-label="Câu hỏi phân tích"
               placeholder="VD: Vẽ biểu đồ so sánh doanh thu và chi phí theo từng tháng, tính tốc độ tăng trưởng..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -615,7 +578,7 @@ export default function DataAnalyzer() {
             <LoadingButton
               onClick={handleAnalyze}
               loading={isLoading}
-              className="h-11 px-5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-md shadow-blue-500/20 gap-2 shrink-0"
+              className="h-11 px-5 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl shadow-none gap-2 shrink-0"
             >
               <Send className="size-4" /> Phân Tích Ngay
             </LoadingButton>
@@ -624,20 +587,20 @@ export default function DataAnalyzer() {
 
         {/* Step 4: Kết quả phân tích & Biểu đồ trực quan (Module 6 & 7) */}
         {result && (
-          <div className="mt-6 rounded-xl border bg-muted/20 p-5 space-y-4 animate-in fade-in-50 duration-300">
+          <div className="finai-result mt-6 rounded-xl border bg-muted/20 p-5 space-y-4 animate-in fade-in-50 duration-300">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-3">
               <div className="flex items-center gap-2">
                 <div className="flex size-7 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
                   <TrendingUp className="size-4" />
                 </div>
-                <h3 className="font-bold text-sm text-foreground">
-                  Báo Cáo Phân Tích: <span className="text-blue-600 dark:text-blue-400">{result.file_name}</span>
+                <h3 className="font-semibold text-sm text-foreground">
+                  Kết quả phân tích: <span className="text-primary dark:text-primary">{result.file_name}</span>
                 </h3>
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
                 {result.execution_time_ms !== undefined && result.execution_time_ms > 0 && (
-                  <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-400 gap-1 text-[11px] font-medium py-1">
+                  <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-400 gap-1 text-xs font-medium py-1">
                     <ShieldCheck className="size-3.5 text-emerald-600 dark:text-emerald-400" />
                     Sandbox an toàn ({result.execution_time_ms}ms)
                   </Badge>
@@ -656,8 +619,8 @@ export default function DataAnalyzer() {
 
             {/* Phạm vi áp dụng thực tế */}
             {result.selected_scope && result.selected_scope.length > 0 ? (
-              <div className="flex items-center gap-2 text-xs p-3 rounded-lg bg-blue-50/70 dark:bg-blue-950/40 text-blue-900 dark:text-blue-300 border border-blue-200 dark:border-blue-900">
-                <SlidersHorizontal className="size-4 shrink-0 text-blue-600 dark:text-blue-400" />
+              <div className="flex items-center gap-2 text-xs p-3 rounded-lg bg-primary/5 dark:bg-primary/10 text-blue-900 dark:text-blue-300 border border-primary/20 dark:border-blue-900">
+                <SlidersHorizontal className="size-4 shrink-0 text-primary dark:text-primary" />
                 <span>
                   Phạm vi đã áp dụng: <strong>{result.selected_scope.length} cột</strong> ({result.selected_scope.join(", ")})
                 </span>
@@ -676,7 +639,7 @@ export default function DataAnalyzer() {
               <div className="flex flex-wrap items-center gap-1.5 text-xs">
                 <span className="font-semibold text-muted-foreground">Các cột được phân tích:</span>
                 {result.columns.map((col, idx) => (
-                  <Badge key={idx} variant="secondary" className="font-mono text-[11px]">
+                  <Badge key={idx} variant="secondary" className="font-mono text-xs">
                     {col}
                   </Badge>
                 ))}
@@ -687,10 +650,10 @@ export default function DataAnalyzer() {
             <Tabs defaultValue="chart" className="w-full">
               <TabsList className="grid w-full max-w-sm grid-cols-2">
                 <TabsTrigger value="chart" className="text-xs font-semibold gap-1.5">
-                  <BarChart3 className="size-3.5 text-blue-600 dark:text-blue-400" /> Kết Quả & Biểu Đồ
+                  <BarChart3 className="size-3.5 text-primary dark:text-primary" /> Kết quả & biểu đồ
                 </TabsTrigger>
                 <TabsTrigger value="code" className="text-xs font-semibold gap-1.5">
-                  <Code2 className="size-3.5" /> Mã Nguồn Python
+                  <Code2 className="size-3.5" /> Mã Python
                 </TabsTrigger>
               </TabsList>
 
@@ -701,8 +664,8 @@ export default function DataAnalyzer() {
                     <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-3">
                       <div className="flex items-center gap-2">
                         <CheckCircle2 className="size-4 text-emerald-600 dark:text-emerald-400" />
-                        <h4 className="font-bold text-xs uppercase tracking-wider text-foreground">
-                          Biểu Đồ Trực Quan Hóa Dữ Liệu
+                        <h4 className="font-semibold text-xs tracking-normal text-foreground">
+                          Biểu đồ kết quả
                         </h4>
                       </div>
                       <Button
@@ -721,11 +684,7 @@ export default function DataAnalyzer() {
                     </div>
 
                     <div className="rounded-xl overflow-hidden border bg-background/60 flex items-center justify-center p-3">
-                      <img
-                        src={result.chart_image}
-                        alt="Biểu đồ phân tích tài chính"
-                        className="max-h-[520px] w-auto object-contain rounded-lg shadow-sm"
-                      />
+                      <ResultFigure src={result.chart_image} alt="Biểu đồ phân tích tài chính" />
                     </div>
                   </div>
                 ) : (
@@ -741,8 +700,8 @@ export default function DataAnalyzer() {
                 {/* Kết quả tính toán bằng lệnh in (stdout) */}
                 {result.stdout && (
                   <div className="rounded-xl border bg-card p-4 space-y-2 shadow-sm">
-                    <h4 className="font-bold text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                      <TrendingUp className="size-3.5 text-blue-500" /> Dữ Liệu Tính Toán & Thống Kê
+                    <h4 className="font-semibold text-xs tracking-normal text-muted-foreground flex items-center gap-1.5">
+                      <TrendingUp className="size-3.5 text-primary" /> Số liệu & diễn giải
                     </h4>
                     <pre className="rounded-lg bg-muted/40 p-3 text-xs font-mono overflow-x-auto text-foreground whitespace-pre-wrap leading-relaxed">
                       {result.stdout}
@@ -753,11 +712,11 @@ export default function DataAnalyzer() {
                 {/* Thông báo lỗi nếu chạy thất bại */}
                 {result.execution_status === "error" && (
                   <div className="rounded-xl border border-rose-200 bg-rose-50/70 dark:bg-rose-950/40 p-4 space-y-2 text-rose-900 dark:text-rose-300 text-xs">
-                    <div className="flex items-center gap-2 font-bold">
+                    <div className="flex items-center gap-2 font-semibold">
                       <AlertCircle className="size-4 text-rose-600 dark:text-rose-400" />
                       <span>Thông Báo Quá Trình Thực Thi</span>
                     </div>
-                    <pre className="font-mono text-[11px] whitespace-pre-wrap bg-background/70 p-2.5 rounded border border-rose-200 dark:border-rose-900">
+                    <pre className="font-mono text-xs whitespace-pre-wrap bg-background/70 p-2.5 rounded border border-rose-200 dark:border-rose-900">
                       {result.execution_error || "Mã nguồn gặp lỗi trong quá trình thực thi trên máy chủ."}
                     </pre>
                   </div>

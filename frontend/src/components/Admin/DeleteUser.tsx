@@ -59,12 +59,12 @@ const DeleteUser = ({ id, onSuccess }: DeleteUserProps) => {
         onClick={() => setIsOpen(true)}
       >
         <Trash2 />
-        Delete User
+        Xóa người dùng
       </DropdownMenuItem>
       <DialogContent className="sm:max-w-md">
         <form onSubmit={handleSubmit(onSubmit)}>
           <DialogHeader>
-            <DialogTitle>Delete User</DialogTitle>
+            <DialogTitle>Xóa người dùng</DialogTitle>
             <DialogDescription>
               All items associated with this user will also be{" "}
               <strong>permanently deleted.</strong> Are you sure? You will not
@@ -75,7 +75,7 @@ const DeleteUser = ({ id, onSuccess }: DeleteUserProps) => {
           <DialogFooter className="mt-4">
             <DialogClose asChild>
               <Button variant="outline" disabled={mutation.isPending}>
-                Cancel
+                Hủy
               </Button>
             </DialogClose>
             <LoadingButton
@@ -83,7 +83,7 @@ const DeleteUser = ({ id, onSuccess }: DeleteUserProps) => {
               type="submit"
               loading={mutation.isPending}
             >
-              Delete
+              Xóa
             </LoadingButton>
           </DialogFooter>
         </form>

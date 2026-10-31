@@ -66,8 +66,8 @@ const ChangePassword = () => {
   }
 
   return (
-    <div className="max-w-md">
-      <h3 className="text-lg font-semibold py-4">Change Password</h3>
+    <div className="finai-form-panel mt-5">
+      <h3 className="text-lg font-semibold py-4">Đổi mật khẩu</h3>
       <Form {...form}>
         <form
           onSubmit={form.handleSubmit(onSubmit)}
@@ -78,7 +78,7 @@ const ChangePassword = () => {
             name="current_password"
             render={({ field, fieldState }) => (
               <FormItem>
-                <FormLabel>Current Password</FormLabel>
+                <FormLabel>Mật khẩu hiện tại</FormLabel>
                 <FormControl>
                   <PasswordInput
                     data-testid="current-password-input"
@@ -97,7 +97,7 @@ const ChangePassword = () => {
             name="new_password"
             render={({ field, fieldState }) => (
               <FormItem>
-                <FormLabel>New Password</FormLabel>
+                <FormLabel>Mật khẩu mới</FormLabel>
                 <FormControl>
                   <PasswordInput
                     data-testid="new-password-input"
@@ -116,7 +116,7 @@ const ChangePassword = () => {
             name="confirm_password"
             render={({ field, fieldState }) => (
               <FormItem>
-                <FormLabel>Confirm Password</FormLabel>
+                <FormLabel>Xác nhận mật khẩu</FormLabel>
                 <FormControl>
                   <PasswordInput
                     data-testid="confirm-password-input"

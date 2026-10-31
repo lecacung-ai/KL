@@ -18,21 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import {
-  FileSpreadsheet,
-  Download,
-  Calendar,
-  Rows,
-  HardDrive,
-  CheckCircle2,
-  AlertTriangle,
-  Sparkles,
-  Info,
-  ShieldCheck,
-  Copy,
-  Wand2,
-  BrainCircuit,
-} from "lucide-react"
+import { FileSpreadsheet, Download, Calendar, Rows, HardDrive, CheckCircle2, AlertTriangle, Sparkles, Info, ShieldCheck, Copy, Wand2, BrainCircuit } from "lucide-react"
 import { Dataset, DatasetColumnMeta, DatasetQualityProfile, DatasetsService } from "@/services/datasetsService"
 
 interface DatasetPreviewModalProps {
@@ -134,13 +120,13 @@ export function DatasetPreviewModal({
         <DialogHeader className="pb-3 border-b">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="flex size-11 items-center justify-center rounded-xl bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400 shadow-sm">
+              <div className="flex size-11 items-center justify-center rounded-xl bg-primary/5 text-primary dark:bg-primary/10 dark:text-primary shadow-sm">
                 <FileSpreadsheet className="size-6" />
               </div>
               <div>
-                <DialogTitle className="text-xl font-bold flex items-center gap-2">
+                <DialogTitle className="text-xl font-semibold flex items-center gap-2">
                   <span>{currentDataset.filename}</span>
-                  <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/60 dark:text-blue-300">
+                  <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 dark:bg-primary/10 dark:text-blue-300">
                     v{currentDataset.version}
                   </Badge>
                   {currentDataset.status === "ready" ? (
@@ -171,7 +157,7 @@ export function DatasetPreviewModal({
               <Button
                 variant="default"
                 size="sm"
-                className="bg-blue-600 hover:bg-blue-700 text-white gap-1.5 h-9 font-semibold shadow-sm"
+                className="bg-primary hover:bg-blue-700 text-white gap-1.5 h-9 font-semibold shadow-sm"
                 onClick={handleStartAnalysis}
               >
                 <BrainCircuit className="size-4" /> Phân Tích Với AI
@@ -195,19 +181,19 @@ export function DatasetPreviewModal({
                 <ShieldCheck className="size-5" />
               </div>
               <div>
-                <p className="text-[11px] text-muted-foreground font-medium">Độ Sạch Dữ Liệu</p>
-                <p className="text-base font-black text-emerald-600 dark:text-emerald-400">{healthScore}%</p>
+                <p className="text-xs text-muted-foreground font-medium">Độ Sạch Dữ Liệu</p>
+                <p className="text-base font-semibold text-emerald-600 dark:text-emerald-400">{healthScore}%</p>
               </div>
             </div>
 
             {/* Total Rows */}
             <div className="flex items-center gap-3 rounded-xl border bg-muted/20 p-3">
-              <div className="flex size-9 items-center justify-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-400">
+              <div className="flex size-9 items-center justify-center rounded-lg bg-primary/5 text-primary dark:bg-primary/10 dark:text-primary">
                 <Rows className="size-5" />
               </div>
               <div>
-                <p className="text-[11px] text-muted-foreground font-medium">Quy Mô Dòng</p>
-                <p className="text-base font-black text-foreground">{currentDataset.row_count.toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground font-medium">Quy Mô Dòng</p>
+                <p className="text-base font-semibold text-foreground">{currentDataset.row_count.toLocaleString()}</p>
               </div>
             </div>
 
@@ -217,8 +203,8 @@ export function DatasetPreviewModal({
                 <AlertTriangle className="size-5" />
               </div>
               <div>
-                <p className="text-[11px] text-muted-foreground font-medium">Ô Thiếu Dữ Liệu</p>
-                <p className="text-base font-black text-foreground">
+                <p className="text-xs text-muted-foreground font-medium">Ô Thiếu Dữ Liệu</p>
+                <p className="text-base font-semibold text-foreground">
                   {totalMissing} <span className="text-xs font-normal text-muted-foreground">ô</span>
                 </p>
               </div>
@@ -230,8 +216,8 @@ export function DatasetPreviewModal({
                 <Copy className="size-5" />
               </div>
               <div>
-                <p className="text-[11px] text-muted-foreground font-medium">Dòng Trùng Lặp</p>
-                <p className="text-base font-black text-foreground">
+                <p className="text-xs text-muted-foreground font-medium">Dòng Trùng Lặp</p>
+                <p className="text-base font-semibold text-foreground">
                   {duplicateRows} <span className="text-xs font-normal text-muted-foreground">dòng</span>
                 </p>
               </div>
@@ -280,13 +266,13 @@ export function DatasetPreviewModal({
             <Table>
               <TableHeader className="bg-muted/50 sticky top-0">
                 <TableRow>
-                  <TableHead className="w-12 text-center font-bold">#</TableHead>
-                  <TableHead className="font-bold">Tên Cột</TableHead>
-                  <TableHead className="font-bold">Phân Loại</TableHead>
-                  <TableHead className="font-bold">Kiểu Dữ Liệu</TableHead>
-                  <TableHead className="font-bold">Giá Trị Duy Nhất</TableHead>
-                  <TableHead className="font-bold">Ô Trống (Missing)</TableHead>
-                  <TableHead className="font-bold">Thống Kê Cơ Bản (Min / Max / Mean)</TableHead>
+                  <TableHead className="w-12 text-center font-semibold">#</TableHead>
+                  <TableHead className="font-semibold">Tên Cột</TableHead>
+                  <TableHead className="font-semibold">Phân Loại</TableHead>
+                  <TableHead className="font-semibold">Kiểu Dữ Liệu</TableHead>
+                  <TableHead className="font-semibold">Giá Trị Duy Nhất</TableHead>
+                  <TableHead className="font-semibold">Ô Trống (Missing)</TableHead>
+                  <TableHead className="font-semibold">Thống Kê Cơ Bản (Min / Max / Mean)</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -300,12 +286,12 @@ export function DatasetPreviewModal({
                         {col.name}
                       </TableCell>
                       <TableCell>
-                        <Badge variant="secondary" className="text-[11px] font-medium">
+                        <Badge variant="secondary" className="text-xs font-medium">
                           {col.type_category || "Dữ liệu"}
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="font-mono text-[11px] bg-muted/30">
+                        <Badge variant="outline" className="font-mono text-xs bg-muted/30">
                           {col.dtype}
                         </Badge>
                       </TableCell>
@@ -315,10 +301,10 @@ export function DatasetPreviewModal({
                       <TableCell>
                         {col.missing_count > 0 ? (
                           <div className="flex items-center gap-1.5">
-                            <span className="text-amber-600 dark:text-amber-400 font-bold text-xs">
+                            <span className="text-amber-600 dark:text-amber-400 font-semibold text-xs">
                               {col.missing_count}
                             </span>
-                            <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 text-[10px]">
+                            <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 text-xs">
                               {col.missing_percentage}%
                             </Badge>
                           </div>
@@ -332,7 +318,7 @@ export function DatasetPreviewModal({
                         {col.min !== undefined && col.max !== undefined ? (
                           <span>Min: {col.min} | Max: {col.max} | TB: {col.mean}</span>
                         ) : (
-                          <span className="italic text-[11px]">Không áp dụng</span>
+                          <span className="italic text-xs">Không áp dụng</span>
                         )}
                       </TableCell>
                     </TableRow>
@@ -352,8 +338,8 @@ export function DatasetPreviewModal({
           <TabsContent value="insights" className="flex-1 overflow-auto mt-3 border rounded-xl p-5 space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Sparkles className="size-5 text-blue-600 dark:text-blue-400" />
-                <h3 className="font-bold text-sm text-foreground">
+                <Sparkles className="size-5 text-primary dark:text-primary" />
+                <h3 className="font-semibold text-sm text-foreground">
                   Đánh Giá Cấu Trúc & Khuyến Nghị Chuẩn Hóa
                 </h3>
               </div>
@@ -370,7 +356,7 @@ export function DatasetPreviewModal({
                   key={rIdx}
                   className="flex items-start gap-3 p-3.5 rounded-xl border bg-card text-xs leading-relaxed"
                 >
-                  <Info className="size-4.5 text-blue-500 shrink-0 mt-0.5" />
+                  <Info className="size-4.5 text-primary shrink-0 mt-0.5" />
                   <p className="text-foreground">{rec}</p>
                 </div>
               ))}
@@ -383,9 +369,9 @@ export function DatasetPreviewModal({
               <Table>
                 <TableHeader className="bg-muted/50 sticky top-0">
                   <TableRow>
-                    <TableHead className="w-12 text-center font-bold">#</TableHead>
+                    <TableHead className="w-12 text-center font-semibold">#</TableHead>
                     {schemaColumns.map((col) => (
-                      <TableHead key={col.name} className="font-bold whitespace-nowrap text-xs">
+                      <TableHead key={col.name} className="font-semibold whitespace-nowrap text-xs">
                         {col.name}
                       </TableHead>
                     ))}
@@ -402,7 +388,7 @@ export function DatasetPreviewModal({
                           {row[col.name] !== undefined && row[col.name] !== null && row[col.name] !== "" ? (
                             String(row[col.name])
                           ) : (
-                            <span className="text-muted-foreground/50 italic text-[11px]">null</span>
+                            <span className="text-muted-foreground/50 italic text-xs">null</span>
                           )}
                         </TableCell>
                       ))}

@@ -4,11 +4,11 @@ import { createUser } from "./utils/privateApi.ts"
 import { randomEmail, randomPassword } from "./utils/random"
 import { logInUser, logOutUser } from "./utils/user"
 
-const tabs = ["My profile", "Password", "Danger zone"]
+const tabs = ["Thông tin cá nhân", "Mật khẩu", "Quản lý tài khoản"]
 
 test("My profile tab is active by default", async ({ page }) => {
   await page.goto("/settings")
-  await expect(page.getByRole("tab", { name: "My profile" })).toHaveAttribute(
+  await expect(page.getByRole("tab", { name: "Thông tin cá nhân" })).toHaveAttribute(
     "aria-selected",
     "true",
   )
@@ -35,15 +35,15 @@ test.describe("Edit user profile", () => {
   test.beforeEach(async ({ page }) => {
     await logInUser(page, email, password)
     await page.goto("/settings")
-    await page.getByRole("tab", { name: "My profile" }).click()
+    await page.getByRole("tab", { name: "Thông tin cá nhân" }).click()
   })
 
   test("Edit user name with a valid name", async ({ page }) => {
     const updatedName = "Test User 2"
 
-    await page.getByRole("button", { name: "Edit" }).click()
-    await page.getByLabel("Full name").fill(updatedName)
-    await page.getByRole("button", { name: "Save" }).click()
+    await page.getByRole("button", { name: "Chỉnh sửa" }).click()
+    await page.getByLabel("Họ và tên").fill(updatedName)
+    await page.getByRole("button", { name: "Lưu thay đổi" }).click()
 
     await expect(page.getByText("User updated successfully")).toBeVisible()
     await expect(
@@ -54,7 +54,7 @@ test.describe("Edit user profile", () => {
   test("Edit user email with an invalid email shows error", async ({
     page,
   }) => {
-    await page.getByRole("button", { name: "Edit" }).click()
+    await page.getByRole("button", { name: "Chỉnh sửa" }).click()
     await page.getByLabel("Email").fill("")
     await page.locator("body").click()
 
@@ -73,11 +73,11 @@ test.describe("Edit user email", () => {
     await createUser({ email, password })
     await logInUser(page, email, password)
     await page.goto("/settings")
-    await page.getByRole("tab", { name: "My profile" }).click()
+    await page.getByRole("tab", { name: "Thông tin cá nhân" }).click()
 
-    await page.getByRole("button", { name: "Edit" }).click()
+    await page.getByRole("button", { name: "Chỉnh sửa" }).click()
     await page.getByLabel("Email").fill(updatedEmail)
-    await page.getByRole("button", { name: "Save" }).click()
+    await page.getByRole("button", { name: "Lưu thay đổi" }).click()
 
     await expect(page.getByText("User updated successfully")).toBeVisible()
     await expect(
@@ -96,10 +96,10 @@ test.describe("Cancel edit actions", () => {
 
     await logInUser(page, email, password)
     await page.goto("/settings")
-    await page.getByRole("tab", { name: "My profile" }).click()
-    await page.getByRole("button", { name: "Edit" }).click()
-    await page.getByLabel("Full name").fill("Test User")
-    await page.getByRole("button", { name: "Cancel" }).first().click()
+    await page.getByRole("tab", { name: "Thông tin cá nhân" }).click()
+    await page.getByRole("button", { name: "Chỉnh sửa" }).click()
+    await page.getByLabel("Họ và tên").fill("Test User")
+    await page.getByRole("button", { name: "Hủy" }).first().click()
 
     await expect(
       page.locator("form").getByText(user.full_name as string, { exact: true }),
@@ -113,10 +113,10 @@ test.describe("Cancel edit actions", () => {
 
     await logInUser(page, email, password)
     await page.goto("/settings")
-    await page.getByRole("tab", { name: "My profile" }).click()
-    await page.getByRole("button", { name: "Edit" }).click()
+    await page.getByRole("tab", { name: "Thông tin cá nhân" }).click()
+    await page.getByRole("button", { name: "Chỉnh sửa" }).click()
     await page.getByLabel("Email").fill(randomEmail())
-    await page.getByRole("button", { name: "Cancel" }).first().click()
+    await page.getByRole("button", { name: "Hủy" }).first().click()
 
     await expect(
       page.locator("form").getByText(email, { exact: true }),
@@ -136,7 +136,7 @@ test.describe("Change password", () => {
     await logInUser(page, email, password)
 
     await page.goto("/settings")
-    await page.getByRole("tab", { name: "Password" }).click()
+    await page.getByRole("tab", { name: "Mật khẩu" }).click()
     await page.getByTestId("current-password-input").fill(password)
     await page.getByTestId("new-password-input").fill(newPassword)
     await page.getByTestId("confirm-password-input").fill(newPassword)
@@ -163,7 +163,7 @@ test.describe("Change password validation", () => {
   test.beforeEach(async ({ page }) => {
     await logInUser(page, email, password)
     await page.goto("/settings")
-    await page.getByRole("tab", { name: "Password" }).click()
+    await page.getByRole("tab", { name: "Mật khẩu" }).click()
   })
 
   test("Update password with weak passwords", async ({ page }) => {
