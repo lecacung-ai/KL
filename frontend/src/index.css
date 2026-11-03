@@ -83,36 +83,36 @@
 
 .dark {
   color-scheme: dark;
-  --background: #131e27;
-  --foreground: #e4ecf2;
-  --card: #1b2933;
-  --card-foreground: #e4ecf2;
-  --popover: #1f303b;
-  --popover-foreground: #e4ecf2;
+  --background: #101a2b;
+  --foreground: #f1f5fc;
+  --card: #26374d;
+  --card-foreground: #f1f5fc;
+  --popover: #2d415a;
+  --popover-foreground: #f1f5fc;
   --primary: #79cbb9;
   --primary-foreground: #102d29;
   --secondary: #263f3b;
   --secondary-foreground: #c5e5dc;
-  --muted: #23323e;
-  --muted-foreground: #a4b5c2;
+  --muted: #31455f;
+  --muted-foreground: #c0cfe3;
   --accent: #28463e;
   --accent-foreground: #d0eee5;
   --destructive: #f18f95;
-  --border: #31434f;
-  --input: #405461;
+  --border: #4b6280;
+  --input: #647d9b;
   --ring: #79cbb9;
   --chart-1: #79cbb9;
   --chart-2: #dbae69;
   --chart-3: #8eb3d0;
   --chart-4: #d1998b;
   --chart-5: #b5bf88;
-  --sidebar: #182630;
-  --sidebar-foreground: #c9d6df;
+  --sidebar: #1a2940;
+  --sidebar-foreground: #dce7f5;
   --sidebar-primary: #79cbb9;
   --sidebar-primary-foreground: #102d29;
   --sidebar-accent: #29453f;
   --sidebar-accent-foreground: #d0eee5;
-  --sidebar-border: #2e414c;
+  --sidebar-border: #435976;
   --sidebar-ring: #79cbb9;
   --finai-note: #3b3325;
   --finai-note-foreground: #e8c489;
@@ -184,8 +184,16 @@
   .finai-insight-item { display: flex; min-width: 0; align-items: center; gap: 1rem; padding: 1.25rem; }
   .finai-insight-item + .finai-insight-item { border-top: 1px solid var(--border); }
   .finai-insight-icon { display: flex; width: 2.75rem; height: 2.75rem; flex: none; align-items: center; justify-content: center; border-radius: 16px; background: var(--secondary); color: var(--primary); }
-  .finai-data-shelf { overflow: hidden; border: 1px solid var(--border); border-radius: 24px; background: var(--card); }
+  .finai-data-shelf { overflow: hidden; border: 1px solid #c7ded8; border-radius: 24px; background: #e6f1eb; }
+  .finai-data-shelf > div:first-child { background: #d9ebe3; border-color: #c7ded8; }
+  .finai-file-tile { background: #f0f7f3; border-color: #c7ded8; }
+  .finai-file-tile:nth-child(3n + 2) { background: #f8efdf; border-color: #e8d8ba; }
+  .finai-file-tile:nth-child(3n) { background: #e8effb; border-color: #cedbf0; }
+  .finai-file-tile:hover { box-shadow: inset 0 0 0 1px var(--primary); }
   .finai-next-step { min-height: 360px; border-radius: 24px; background: radial-gradient(circle at 110% -10%, rgb(245 197 121 / .25), transparent 42%), #183846; box-shadow: 0 18px 50px rgb(24 48 68 / .14); }
+  .finai-forecast-cta { background: #2e8b42; color: #fff; border: 1px solid #69b878; box-shadow: 0 6px 18px rgb(0 0 0 / .14); }
+  .finai-forecast-cta:hover { background: #246f35; color: #fff; }
+  .finai-forecast-cta:focus-visible { outline: 3px solid #b8ef9c; outline-offset: 3px; }
   .finai-workspace [data-slot="tabs-content"], .finai-workspace [data-slot="card-content"] { min-width: 0; }
   .finai-workspace [data-slot="card"] { min-width: 0; }
   .finai-workspace [data-slot="table-container"] { max-width: 100%; }
@@ -199,6 +207,35 @@
   .finai-analyzer select, .finai-analyzer input:not([type="file"]) { min-height: 46px; }
   .finai-source-option { min-width: 0; min-height: 130px; }
   .finai-analyzer select { min-width: 0; max-width: 100%; }
+  .finai-analysis-step-heading { display: flex; align-items: center; gap: 1rem; min-width: 0; }
+  .finai-analysis-step-heading h3 { color: var(--foreground); font-size: clamp(1rem, 1.5vw, 1.25rem); font-weight: 700; line-height: 1.4; }
+  .finai-analysis-step-icon { display: flex; width: 3.25rem; height: 3.25rem; flex-shrink: 0; align-items: center; justify-content: center; border-radius: 16px; color: var(--primary); background: var(--secondary); border: 1px solid color-mix(in srgb, var(--primary) 18%, var(--border)); }
+  .finai-analysis-question-icon { color: var(--finai-note-foreground); background: var(--finai-note); }
+  .finai-analysis-step-number { margin-bottom: .2rem; color: var(--primary); font-size: .75rem; font-weight: 700; }
+  .finai-analysis-step-description { margin-top: .3rem; color: var(--muted-foreground); font-size: .875rem; line-height: 1.6; }
+  .dark .finai-insight-item:nth-child(1) { background: #24534c; }
+  .dark .finai-insight-item:nth-child(2) { background: #314e73; }
+  .dark .finai-insight-item:nth-child(3) { background: #59462f; }
+  .dark .finai-insight-item:nth-child(4) { background: #4b3e68; }
+  .dark .finai-insight-item:nth-child(2) .finai-insight-icon { background: #314a6b; color: #a8ceff; }
+  .dark .finai-insight-item:nth-child(3) .finai-insight-icon { background: #57472f; color: #f5ce8c; }
+  .dark .finai-insight-item:nth-child(4) .finai-insight-icon { background: #484261; color: #d3bfff; }
+  .dark .finai-data-shelf { background: #1d3045; border-color: #526e8b; }
+  .dark .finai-data-shelf > div:first-child { background: #314d65; border-color: #526e8b; }
+  .dark .finai-file-tile { background: #2c514a; border-color: #638c7c; }
+  .dark .finai-file-tile:nth-child(3n + 2) { background: #544433; border-color: #907654; }
+  .dark .finai-file-tile:nth-child(3n) { background: #344f73; border-color: #6787ae; }
+  .dark .finai-next-step { border: 1px solid #7b7299; background: linear-gradient(145deg, #4c4268, #293f5b); }
+  .dark .finai-analyzer-intro { background: linear-gradient(120deg, #31556c, #4c4363); }
+  .dark .finai-analyzer-workflow { background: #18263b; }
+  .dark .finai-analysis-phase { padding: 1.25rem; border: 1px solid #6887ab; border-radius: 20px; background: #2c4562; }
+  .dark .finai-analysis-phase[data-step="scope"] { border-color: #82709e; background: #433857; }
+  .dark .finai-analysis-phase[data-step="scope"] .finai-analysis-step-icon { color: #d4c0ff; background: #443c5b; border-color: #665681; }
+  .dark .finai-analysis-phase[data-step="scope"] .finai-analysis-step-number { color: #d4c0ff; }
+  .dark .finai-analysis-phase[data-step="question"] { border-color: #967c53; background: #514331; }
+  .dark .finai-analysis-phase[data-step="question"] .finai-analysis-step-number { color: #f5ce8c; }
+  .dark .finai-analysis-phase[data-step="question"] input { border-color: #756047; background: #211f23; }
+  .dark .finai-analysis-phase[data-step="source"] .finai-source-option { background: #35546e; }
   .finai-result pre { max-width: 100%; white-space: pre; overflow: auto; }
   .finai-results-image { display: block; max-width: 100%; height: auto; object-fit: contain; }
   .finai-figure { width: 100%; min-width: 0; border: 1px solid var(--border); border-radius: 16px; background: var(--card); }

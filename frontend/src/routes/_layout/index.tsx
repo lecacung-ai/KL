@@ -80,10 +80,10 @@ function Dashboard() {
           <div>
             <h1 id="dashboard-welcome" className="finai-eyebrow text-[#f5c579]">Tổng quan</h1>
             <h2 className="max-w-2xl text-3xl leading-[1.08] font-semibold tracking-[-.045em] text-white sm:text-5xl">
-              Chào {currentUser?.full_name || currentUser?.email?.split("@")[0]}, hôm nay bạn muốn hiểu điều gì từ dữ liệu?
+              Chào {currentUser?.full_name || currentUser?.email?.split("@")[0]}, cùng khám phá dữ liệu của bạn.
             </h2>
             <p className="mt-5 max-w-xl text-sm leading-7 text-white/75 sm:text-base">
-              Bắt đầu từ một bảng dữ liệu, đặt câu hỏi bằng tiếng Việt và giữ mọi kết quả trong cùng một luồng làm việc.
+              Chọn tệp Excel hoặc CSV, nhập điều bạn muốn biết và xem kết quả bằng số liệu, biểu đồ.
             </p>
           </div>
           <div className="mt-8 flex flex-wrap gap-3">
@@ -98,17 +98,12 @@ function Dashboard() {
         <div className="finai-dashboard-art relative min-h-[290px] lg:min-h-full">
           <img src="/images/finai-data-story.png" alt="Minh họa hành trình từ bảng dữ liệu đến quyết định" className="absolute inset-0 size-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-r from-[#123946] via-[#123946]/20 to-transparent lg:from-[#123946]/25" />
-          <div className="absolute right-5 bottom-5 left-5 rounded-2xl border border-white/25 bg-white/85 p-4 text-[#183044] shadow-xl backdrop-blur-md sm:right-8 sm:bottom-8 sm:left-auto sm:w-[310px]">
-            <div className="flex items-center justify-between gap-4"><span className="text-xs font-semibold tracking-wide uppercase">Dữ liệu hiện có</span><Database className="size-4 text-[#0f766e]" /></div>
-            <p className="mt-3 text-3xl font-semibold tracking-tight">{totalDatasets} <span className="text-sm font-medium text-[#607584]">tệp dữ liệu</span></p>
-            <p className="mt-1 text-xs text-[#607584]">{totalRecords.toLocaleString()} bản ghi · {formatFileSize(totalBytes)}</p>
-          </div>
         </div>
       </section>
 
       <section className="finai-insight-strip" aria-label="Tổng quan dữ liệu">
         {[
-          { icon: Database, label: "Nguồn dữ liệu", value: `${totalDatasets} tệp`, note: `${formatFileSize(totalBytes)} đã lưu` },
+          { icon: Database, label: "Nguồn dữ liệu", value: `${totalDatasets} tệp`, note: `${totalRecords.toLocaleString()} dòng · ${formatFileSize(totalBytes)}` },
           { icon: Layers, label: "Cột dữ liệu số", value: totalDatasets === 0 ? "—" : totalNumericCols, note: "Nhận diện từ cấu trúc tệp" },
           { icon: Activity, label: "Chất lượng dữ liệu", value: totalDatasets === 0 ? "—" : `${avgHealthScore}/100`, note: "Theo metadata hiện có" },
           { icon: TrendingUp, label: "Dữ liệu cho dự báo", value: totalDatasets === 0 ? "—" : totalDatasets, note: totalDatasets === 0 ? "Thêm tệp để bắt đầu" : "Nguồn có thể lựa chọn" },
@@ -130,8 +125,8 @@ function Dashboard() {
             <div className="grid min-h-[280px] place-items-center px-6 py-10 text-center">
               <div><span className="mx-auto flex size-16 items-center justify-center rounded-[22px] bg-secondary text-primary"><FileSpreadsheet className="size-7" /></span><h3 className="mt-5 text-lg font-semibold">Bắt đầu với bảng dữ liệu đầu tiên</h3><p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">Thêm CSV hoặc Excel để xem cấu trúc, chọn cột và đặt câu hỏi.</p><Button asChild className="mt-5"><Link to="/datasets">Thêm dữ liệu <ArrowRight className="size-4" /></Link></Button></div>
             </div>
-          ) : <div className="grid gap-px bg-border sm:grid-cols-2">{datasets.slice(0, 4).map((d, index) => (
-            <div key={d.id} className="group min-w-0 bg-card p-5 transition-colors hover:bg-muted/30 sm:p-6">
+          ) : <div className="finai-file-grid grid gap-3 p-4 sm:grid-cols-2">{datasets.slice(0, 4).map((d, index) => (
+            <div key={d.id} className="finai-file-tile group min-w-0 rounded-2xl border p-5 transition-colors sm:p-6">
               <div className="flex items-start justify-between gap-3"><span className={`flex size-11 items-center justify-center rounded-2xl ${index % 2 === 0 ? "bg-[#e4f2ee] text-[#0f766e]" : "bg-[#fbedd7] text-[#9b6428]"}`}><BarChart3 className="size-5" /></span><Badge variant="outline" className="text-xs">{d.status === "ready" ? "Sẵn sàng" : d.status}</Badge></div>
               <p className="mt-6 break-all font-semibold leading-6">{d.filename}</p>
               <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground"><span>{d.row_count.toLocaleString()} dòng</span><span>{d.column_count} cột</span><span>Phiên bản {d.version}</span></div>
@@ -139,15 +134,20 @@ function Dashboard() {
           ))}</div>}
         </section>
 
-        <aside className="finai-next-step flex flex-col justify-between overflow-hidden p-6 sm:p-8">
-          <div><span className="flex size-12 items-center justify-center rounded-2xl bg-[#f5c579] text-[#183044]"><TrendingUp className="size-5" /></span><p className="finai-eyebrow mt-8 text-[#f5c579]">Khám phá tiếp</p><h2 className="text-2xl font-semibold tracking-tight text-white">Nhìn xa hơn từ chuỗi dữ liệu của bạn.</h2><p className="mt-4 text-sm leading-7 text-white/70">Dùng dữ liệu theo thời gian để xem xu hướng hoặc tìm những nhóm có đặc điểm tương đồng.</p></div>
-          <Button asChild variant="outline" className="mt-8 w-full border-white/25 bg-white/10 text-white hover:bg-white/20 hover:text-white"><Link to="/forecast">Mở dự báo & phân nhóm <ArrowUpRight className="size-4" /></Link></Button>
+        <aside aria-label="Dự báo và phân nhóm" className="finai-next-step flex flex-col justify-between overflow-hidden p-6 sm:p-8">
+          <div>
+            <div className="mx-auto w-full max-w-[280px] overflow-hidden rounded-2xl bg-white">
+              <img src="/images/tangtruong1.jpg" alt="Minh họa tăng trưởng với các cột và mũi tên xanh ngọc" className="aspect-[3/2] w-full object-contain" />
+            </div>
+            <p className="mt-5 text-sm leading-7 text-white/80">Dùng dữ liệu theo thời gian để xem xu hướng hoặc tìm những nhóm có đặc điểm tương đồng.</p>
+          </div>
+          <Button asChild className="finai-forecast-cta mt-6 w-full"><Link to="/forecast">Mở dự báo & phân nhóm <ArrowUpRight className="size-4" /></Link></Button>
         </aside>
       </div>
 
       <section id="phan-tich" className="scroll-mt-24 space-y-5">
         <PageHeading eyebrow="Không gian phân tích" title="Đặt câu hỏi cho dữ liệu"
-          description="Một quy trình rõ ràng từ chọn nguồn, thu hẹp phạm vi đến đọc kết quả và biểu đồ." />
+          description="Làm lần lượt ba bước bên dưới. Kết quả phân tích sẽ xuất hiện ngay sau câu hỏi của bạn." />
         <DataAnalyzer />
       </section>
     </div>

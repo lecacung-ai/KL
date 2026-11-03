@@ -1,7 +1,7 @@
 import { ResultFigure } from "@/components/Common/ResultFigure"
 import { useState, useEffect } from "react"
 import axios from "axios"
-import { Send, FileSpreadsheet, Check, Copy, Code2, Database, TrendingUp, SlidersHorizontal, Upload, BarChart3, PieChart, AlertCircle, Download, CheckCircle2, ShieldCheck, Loader2, RotateCcw } from "lucide-react"
+import { Send, FileSpreadsheet, Check, Copy, Code2, Database, TrendingUp, SlidersHorizontal, Upload, BarChart3, PieChart, AlertCircle, Download, CheckCircle2, ShieldCheck, Loader2, RotateCcw, MessageSquareText } from "lucide-react"
 import { toast } from "sonner"
 import { Link } from "@tanstack/react-router"
 
@@ -303,19 +303,22 @@ export default function DataAnalyzer() {
     <div className="finai-analyzer min-w-0 overflow-hidden rounded-[26px] text-card-foreground">
       <div className="finai-analyzer-intro flex flex-wrap items-start justify-between gap-4 p-6 sm:p-8">
         <div className="min-w-0 max-w-2xl">
-          <p className="finai-eyebrow text-[#f5c579]">Bắt đầu khám phá</p>
-          <h2 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">Bạn muốn tìm hiểu điều gì?</h2>
-          <p className="mt-3 max-w-xl text-sm leading-7 text-white/70">Đi theo ba bước: chọn nguồn dữ liệu, xác định phạm vi và đặt câu hỏi. Kết quả sẽ được giữ ngay trong không gian này.</p>
+          <div className="flex items-center gap-4">
+            <span className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-[#f5c579] text-[#173b47]"><MessageSquareText aria-hidden="true" className="size-7" /></span>
+            <div><p className="finai-eyebrow text-[#f5c579]">Phân tích dữ liệu</p>
+            <h2 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">Đặt câu hỏi, tìm câu trả lời</h2></div>
+          </div>
+          <p className="mt-4 max-w-xl text-sm leading-7 text-white/80">Chọn một tệp, chọn các cột cần xem rồi nhập câu hỏi bằng tiếng Việt.</p>
         </div>
         <Button asChild variant="outline" size="sm" className="border-white/25 bg-white/10 text-white hover:bg-white/20 hover:text-white"><Link to="/datasets"><Database className="size-4" /> Kho dữ liệu ({datasets.length})</Link></Button>
       </div>
 
       <div className="finai-analyzer-workflow space-y-8 bg-card p-4 sm:p-7">
         {/* Step 1: Chọn nguồn dữ liệu */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <span className="flex size-5 items-center justify-center rounded-md bg-blue-600/10 text-primary dark:bg-blue-400/10 dark:text-primary text-xs font-semibold">1</span>
-            <span className="text-xs font-semibold tracking-normal text-muted-foreground">Chọn dữ liệu</span>
+        <div className="finai-analysis-phase space-y-4" data-step="source">
+          <div className="finai-analysis-step-heading">
+            <span className="finai-analysis-step-icon"><Database aria-hidden="true" className="size-6" /></span>
+            <div><p className="finai-analysis-step-number">Bước 1</p><h3>Chọn dữ liệu cần phân tích</h3><p className="finai-analysis-step-description">Dùng tệp đã lưu hoặc chọn Excel, CSV từ máy tính.</p></div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -328,8 +331,8 @@ export default function DataAnalyzer() {
               }`}
             >
               <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                  <Database className="size-3.5 text-primary" /> Chọn tệp đã lưu
+                <p className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <Database aria-hidden="true" className="size-5 text-primary" /> Chọn tệp đã lưu
                 </p>
                 {selectedDatasetId && (
                   <Badge variant="outline" className="text-xs bg-primary/5 text-primary dark:bg-primary/10 dark:text-blue-300 font-medium">
@@ -368,8 +371,8 @@ export default function DataAnalyzer() {
               }`}
             >
               <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                  <FileSpreadsheet className="size-3.5 text-emerald-500" /> Chọn tệp từ máy tính
+                <p className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <FileSpreadsheet aria-hidden="true" className="size-5 text-primary" /> Chọn tệp từ máy tính
                 </p>
                 {file && (
                   <Badge variant="outline" className="text-xs bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-medium">
@@ -405,49 +408,45 @@ export default function DataAnalyzer() {
 
         {/* Step 2 (Module 4): Chọn phạm vi phân tích theo cột */}
         {availableColumns.length === 0 ? (
-          <div className="space-y-3 rounded-xl border border-dashed bg-muted/10 p-4 transition-all">
+          <div className="finai-analysis-phase space-y-3 rounded-xl border border-dashed bg-muted/10 p-4 transition-all" data-step="scope">
             <div className="flex items-center gap-3">
-              <div className="flex size-8 items-center justify-center rounded-lg bg-muted text-muted-foreground shrink-0">
+              <div className="finai-analysis-step-icon">
                 {isInspecting ? (
                   <Loader2 className="size-4 animate-spin text-primary" />
                 ) : (
-                  <SlidersHorizontal className="size-4" />
+                  <SlidersHorizontal aria-hidden="true" className="size-6" />
                 )}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="flex size-5 items-center justify-center rounded-md bg-blue-600/10 text-primary dark:bg-blue-400/10 dark:text-primary text-xs font-semibold shrink-0">2</span>
-                  <h4 className="text-xs font-semibold tracking-normal text-foreground flex items-center gap-2">
-                    Phạm Vi Dữ Liệu Phân Tích (Chọn Cột)
-                    {isInspecting && (
-                      <Badge variant="outline" className="text-xs bg-primary/5 text-primary border-primary/20 ">
-                        Đang quét cấu trúc cột...
-                      </Badge>
-                    )}
-                  </h4>
+                <p className="finai-analysis-step-number">Bước 2</p>
+                <div className="finai-analysis-step-heading flex-wrap">
+                  <h3>Chọn cột muốn xem</h3>
+                  {isInspecting && (
+                    <Badge variant="outline" className="text-xs bg-primary/5 text-primary border-primary/20">
+                      Đang quét cấu trúc cột...
+                    </Badge>
+                  )}
                 </div>
-                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                <p className="finai-analysis-step-description">
                   {isInspecting
                     ? "Đang tự động quét và phân loại các cột trong tệp..."
-                    : "Chưa có nguồn dữ liệu. Hãy chọn tệp trong Kho dữ liệu hoặc tải tệp Excel/CSV lên ở Bước 1. Hệ thống sẽ hiển thị danh sách cột để bạn chọn lựa (mặc định phân tích toàn bộ nếu không chọn cụ thể)."}
+                    : "Chọn tệp ở bước 1 để xem danh sách cột. Nếu không chọn cột cụ thể, hệ thống dùng toàn bộ bảng."}
                 </p>
               </div>
             </div>
           </div>
         ) : (
-          <div className="space-y-3 rounded-xl border bg-muted/20 p-4 transition-all">
+          <div className="finai-analysis-phase space-y-3 rounded-xl border bg-muted/20 p-4 transition-all" data-step="scope">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-3">
               <div className="flex items-center gap-2">
-                <span className="flex size-5 items-center justify-center rounded-md bg-blue-600/10 text-primary dark:bg-blue-400/10 dark:text-primary text-xs font-semibold">2</span>
-                <div className="flex size-7 items-center justify-center rounded-lg bg-primary/5 text-primary dark:bg-primary/10 dark:text-primary">
-                  <SlidersHorizontal className="size-4" />
+                <div className="finai-analysis-step-icon">
+                  <SlidersHorizontal aria-hidden="true" className="size-6" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-semibold tracking-normal text-foreground">
-                    Phạm Vi Dữ Liệu Phân Tích (Chọn Cột)
-                  </h4>
+                  <p className="finai-analysis-step-number">Bước 2</p>
+                  <h3 className="text-lg font-semibold text-foreground">Chọn cột muốn xem</h3>
                   <p className="text-xs text-muted-foreground">
-                    Bấm chọn các cột bạn cần AI tập trung phân tích. Mặc định sẽ phân tích trên toàn bộ các cột nếu không chọn cụ thể.
+                    Chọn các cột liên quan đến câu hỏi. Không chọn cột cụ thể nghĩa là dùng toàn bộ bảng.
                   </p>
                 </div>
               </div>
@@ -539,12 +538,10 @@ export default function DataAnalyzer() {
         )}
 
         {/* Step 3: Nhập câu hỏi hoặc chọn câu hỏi mẫu */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <span className="flex size-5 items-center justify-center rounded-md bg-blue-600/10 text-primary dark:bg-blue-400/10 dark:text-primary text-xs font-semibold">
-              3
-            </span>
-            <span className="text-xs font-semibold tracking-normal text-muted-foreground">Đặt câu hỏi của bạn</span>
+        <div className="finai-analysis-phase space-y-4" data-step="question">
+          <div className="finai-analysis-step-heading">
+            <span className="finai-analysis-step-icon finai-analysis-question-icon"><MessageSquareText aria-hidden="true" className="size-6" /></span>
+            <div><p className="finai-analysis-step-number">Bước 3</p><h3>Bạn muốn biết điều gì?</h3><p className="finai-analysis-step-description">Nhập câu hỏi hoặc chọn một gợi ý bên dưới, rồi bấm Phân tích ngay.</p></div>
           </div>
 
           {/* Quick Prompt Pills with modern icons */}
