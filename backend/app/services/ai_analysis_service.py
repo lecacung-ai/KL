@@ -21,6 +21,11 @@ from app.repositories.analysis_history_repository import (
     AnalysisHistoryRepository,
     analysis_history_repository,
 )
+from app.services.analysis_prompt import (
+    build_analysis_prompt,
+    build_data_context,
+    build_repair_prompt,
+)
 from app.services.dataframe_service import dataframe_service
 
 UPLOAD_DIR = "/tmp/uploads"
@@ -120,10 +125,7 @@ class AiAnalysisService:
             selected_cols = [c.strip() for c in scope_columns.split(",") if c.strip() in all_columns] if scope_columns else []
             df_scoped = df[selected_cols] if selected_cols else df
             columns = df_scoped.columns.tolist()
-            schema_info = (
-                f"Các cột trong phạm vi phân tích gồm: {', '.join(columns)}. "
-                f"Dữ liệu mẫu 5 dòng đầu:\n{df_scoped.head(5).to_string()}"
-            )
+            schema_info = build_data_context(df_scoped, query)
         except Exception as error:
             raise AppException(
                 ErrorCode.ANALYSIS_UPLOAD_READ_ERROR,
@@ -140,41 +142,19 @@ class AiAnalysisService:
             if not api_key:
                 ai_code = "# Lỗi: Hệ thống chưa được cấu hình GEMINI_API_KEY."
             else:
-                read_snippet = f"pd.read_csv('{file_path}')" if filename.endswith(".csv") else f"pd.read_excel('{file_path}')"
-                prompt = f"""
-Bạn là một chuyên gia phân tích dữ liệu kinh doanh và tài chính bằng Python.
-Tệp dữ liệu đã được làm sạch và chuẩn hóa sẵn sàng trên máy chủ tại: '{file_path}'.
-Để đọc dữ liệu: df = {read_snippet}
-
-Cấu trúc và phạm vi dữ liệu:
-{schema_info}
-
-Phạm vi cột chỉ định: {', '.join(selected_cols) if selected_cols else 'Toàn bộ dữ liệu'}
-Yêu cầu phân tích: "{query}"
-
-Nhiệm vụ của bạn:
-1. Viết MÃ NGUỒN PYTHON hoàn chỉnh (dùng pandas để tính toán và matplotlib/seaborn để vẽ biểu đồ trực quan).
-2. Khi vẽ biểu đồ: sử dụng đúng tên các cột ở trên, ép kiểu dữ liệu số pd.to_numeric(df[col], errors='coerce') trước khi vẽ hoặc tính toán, và lưu biểu đồ vào tệp 'output.png'.
-3. Nếu có tính toán chỉ số tài chính, hãy dùng lệnh print() để in kết quả rõ ràng ra màn hình.
-4. Chỉ trả về mã Python trong khối ```python ... ```, tuyệt đối không giải thích thêm bằng văn bản, không dùng input().
-"""
+                prompt = build_analysis_prompt(
+                    file_path=file_path, context=schema_info, columns=columns, query=query,
+                )
                 success, response_text = await self._call_gemini(prompt, api_key)
                 if success:
                     ai_code = response_text
                     execution = execute_in_sandbox(ai_code, file_path, timeout=15)
                     if not execution["success"] and execution["stderr"] and execution.get("security_status") != "blocked":
-                        fix_prompt = f"""
-Mã nguồn Python bạn vừa tạo khi thực thi trên máy chủ gặp lỗi sau:
-{execution['stderr']}
-
-Hãy sửa lại toàn bộ mã Python để khắc phục hoàn toàn lỗi trên.
-Đảm bảo tệp dữ liệu được đọc từ '{file_path}' và nếu vẽ biểu đồ thì lưu vào 'output.png'.
-Chỉ trả về mã Python trong khối ```python ... ```.
-"""
+                        fix_prompt = build_repair_prompt(prompt, ai_code, execution["stderr"])
                         retry_success, retry_code = await self._call_gemini(fix_prompt, api_key)
                         if retry_success:
                             retry_execution = execute_in_sandbox(retry_code, file_path, timeout=15)
-                            if retry_execution["success"] or retry_execution["chart_image"]:
+                            if retry_execution["success"]:
                                 ai_code, execution = retry_code, retry_execution
                 elif "429" in response_text or "RESOURCE_EXHAUSTED" in response_text:
                     ai_code = "# Hệ thống phân tích đang tạm thời đạt giới hạn yêu cầu. Vui lòng bấm 'Phân Tích Ngay' để thử lại."
@@ -187,7 +167,7 @@ Chỉ trả về mã Python trong khối ```python ... ```.
                 self.history_repository.add(session, AnalysisHistory(
                     dataset_name=filename, query=query, ai_code=ai_code,
                     stdout=execution.get("stdout"),
-                    status=status if status != "idle" else "success",
+                    status=status,
                     error_message=execution.get("stderr"),
                     execution_time_ms=execution.get("execution_time_ms", 0),
                     memory_mb=24.5, chart_image=execution.get("chart_image"),
@@ -198,13 +178,15 @@ Chỉ trả về mã Python trong khối ```python ... ```.
                 pass
 
         return {
-            "message": "Xử lý thành công", "file_name": filename, "columns": columns,
+            "message": "Thực thi hoàn tất; cần đối chiếu dữ liệu nguồn" if execution.get("success") else "Phân tích chưa hoàn tất",
+            "file_name": filename, "columns": columns,
             "selected_scope": selected_cols, "ai_code": ai_code,
             "chart_image": execution.get("chart_image"), "stdout": execution.get("stdout"),
             "execution_status": "success" if execution.get("success") else ("error" if execution.get("stderr") else "idle"),
             "execution_error": execution.get("stderr"),
             "execution_time_ms": execution.get("execution_time_ms", 0),
             "security_status": execution.get("security_status", "passed"),
+            "validation_status": "unverified" if execution.get("success") else "not_run",
         }
 
 
