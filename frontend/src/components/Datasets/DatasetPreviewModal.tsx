@@ -18,7 +18,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { FileSpreadsheet, Download, Calendar, Rows, HardDrive, CheckCircle2, AlertTriangle, Sparkles, Info, ShieldCheck, Copy, Wand2, BrainCircuit } from "lucide-react"
+import { FileSpreadsheet, Calendar, Rows, HardDrive, CheckCircle2, AlertTriangle, Sparkles, Info, ShieldCheck, Copy, Wand2, BrainCircuit } from "lucide-react"
+import { DownloadDatasetButton } from "@/components/Datasets/DownloadDatasetButton"
 import { Dataset, DatasetColumnMeta, DatasetQualityProfile, DatasetsService } from "@/services/datasetsService"
 
 interface DatasetPreviewModalProps {
@@ -162,14 +163,7 @@ export function DatasetPreviewModal({
               >
                 <BrainCircuit className="size-4" /> Phân Tích Với AI
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5 h-9 font-medium"
-                onClick={() => window.open(DatasetsService.getDownloadUrl(currentDataset.id), "_blank")}
-              >
-                <Download className="size-4" /> Tải Tệp Gốc
-              </Button>
+              <DownloadDatasetButton key={currentDataset.id} dataset={currentDataset} />
             </div>
           </div>
 

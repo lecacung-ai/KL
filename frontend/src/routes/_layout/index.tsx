@@ -6,6 +6,7 @@ import useAuth from "@/hooks/useAuth"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { PageHeading } from "@/components/Common/PageHeading"
+import { DatasetPreviewModal } from "@/components/Datasets/DatasetPreviewModal"
 import DataAnalyzer from "../../components/DataAnalyzer"
 import { DatasetsService, Dataset } from "@/services/datasetsService"
 
@@ -24,6 +25,7 @@ function Dashboard() {
   const { user: currentUser } = useAuth()
   const [datasets, setDatasets] = useState<Dataset[]>([])
   const [loading, setLoading] = useState(true)
+  const [previewDataset, setPreviewDataset] = useState<Dataset | null>(null)
 
   useEffect(() => {
     DatasetsService.getDatasets()
@@ -78,11 +80,11 @@ function Dashboard() {
       <section className="finai-dashboard-hero overflow-hidden" aria-labelledby="dashboard-welcome">
         <div className="finai-dashboard-copy relative z-10 flex min-h-[430px] flex-col justify-between p-6 sm:p-9 xl:p-12">
           <div>
-            <h1 id="dashboard-welcome" className="finai-eyebrow text-[#f5c579]">Tổng quan</h1>
-            <h2 className="max-w-2xl text-3xl leading-[1.08] font-semibold tracking-[-.045em] text-white sm:text-5xl">
+            <h1 id="dashboard-welcome" className="finai-eyebrow">Tổng quan</h1>
+            <h2 className="max-w-2xl text-3xl leading-[1.08] font-semibold tracking-[-.045em] text-foreground sm:text-5xl">
               Chào {currentUser?.full_name || currentUser?.email?.split("@")[0]}, cùng khám phá dữ liệu của bạn.
             </h2>
-            <p className="mt-5 max-w-xl text-sm leading-7 text-white/75 sm:text-base">
+            <p className="mt-5 max-w-xl text-sm leading-7 text-muted-foreground sm:text-base">
               Chọn tệp Excel hoặc CSV, nhập điều bạn muốn biết và xem kết quả bằng số liệu, biểu đồ.
             </p>
           </div>
@@ -90,14 +92,13 @@ function Dashboard() {
             <Button asChild size="lg" className="bg-[#f5c579] text-[#163844] hover:bg-[#ffd99c]">
               <a href="#phan-tich"><MessageSquareText className="size-4" /> Bắt đầu phân tích</a>
             </Button>
-            <Button asChild size="lg" variant="outline" className="border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white">
+            <Button asChild size="lg" variant="outline">
               <Link to="/datasets"><Database className="size-4" /> Xem kho dữ liệu</Link>
             </Button>
           </div>
         </div>
         <div className="finai-dashboard-art relative min-h-[290px] lg:min-h-full">
           <img src="/images/finai-data-story.png" alt="Minh họa hành trình từ bảng dữ liệu đến quyết định" className="absolute inset-0 size-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#123946] via-[#123946]/20 to-transparent lg:from-[#123946]/25" />
         </div>
       </section>
 
@@ -126,20 +127,25 @@ function Dashboard() {
               <div><span className="mx-auto flex size-16 items-center justify-center rounded-[22px] bg-secondary text-primary"><FileSpreadsheet className="size-7" /></span><h3 className="mt-5 text-lg font-semibold">Bắt đầu với bảng dữ liệu đầu tiên</h3><p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">Thêm CSV hoặc Excel để xem cấu trúc, chọn cột và đặt câu hỏi.</p><Button asChild className="mt-5"><Link to="/datasets">Thêm dữ liệu <ArrowRight className="size-4" /></Link></Button></div>
             </div>
           ) : <div className="finai-file-grid grid gap-3 p-4 sm:grid-cols-2">{datasets.slice(0, 4).map((d, index) => (
-            <div key={d.id} className="finai-file-tile group min-w-0 rounded-2xl border p-5 transition-colors sm:p-6">
-              <div className="flex items-start justify-between gap-3"><span className={`flex size-11 items-center justify-center rounded-2xl ${index % 2 === 0 ? "bg-[#e4f2ee] text-[#0f766e]" : "bg-[#fbedd7] text-[#9b6428]"}`}><BarChart3 className="size-5" /></span><Badge variant="outline" className="text-xs">{d.status === "ready" ? "Sẵn sàng" : d.status}</Badge></div>
-              <p className="mt-6 break-all font-semibold leading-6">{d.filename}</p>
-              <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground"><span>{d.row_count.toLocaleString()} dòng</span><span>{d.column_count} cột</span><span>Phiên bản {d.version}</span></div>
-            </div>
+            <button key={d.id} type="button" onClick={() => setPreviewDataset(d)} aria-label={`Xem chi tiết tệp ${d.filename}`}
+              className="finai-file-tile group min-w-0 rounded-2xl border p-5 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:p-6">
+              <span className="flex items-start justify-between gap-3"><span className={`flex size-11 items-center justify-center rounded-2xl ${index % 2 === 0 ? "bg-[#e4f2ee] text-[#0f766e]" : "bg-[#fbedd7] text-[#9b6428]"}`}><BarChart3 aria-hidden="true" className="size-5" /></span><Badge variant="outline" className="text-xs">{d.status === "ready" ? "Sẵn sàng" : d.status}</Badge></span>
+              <span className="mt-6 block break-all font-semibold leading-6">{d.filename}</span>
+              <span className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground"><span>{d.row_count.toLocaleString()} dòng</span><span>{d.column_count} cột</span><span>Phiên bản {d.version}</span></span>
+              <span className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-primary">Xem chi tiết <ArrowUpRight aria-hidden="true" className="size-3.5" /></span>
+            </button>
           ))}</div>}
         </section>
 
         <aside aria-label="Dự báo và phân nhóm" className="finai-next-step flex flex-col justify-between overflow-hidden p-6 sm:p-8">
-          <div>
-            <div className="mx-auto w-full max-w-[280px] overflow-hidden rounded-2xl bg-white">
+          <div className="space-y-6">
+            <div className="flex items-center gap-3">
+              <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl border border-primary/20 bg-secondary text-primary"><TrendingUp aria-hidden="true" className="size-5" /></span>
+              <h2 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">Dự báo & phân nhóm</h2>
+            </div>
+            <div className="mx-auto w-full max-w-[320px] overflow-hidden rounded-2xl bg-white">
               <img src="/images/tangtruong1.jpg" alt="Minh họa tăng trưởng với các cột và mũi tên xanh ngọc" className="aspect-[3/2] w-full object-contain" />
             </div>
-            <p className="mt-5 text-sm leading-7 text-white/80">Dùng dữ liệu theo thời gian để xem xu hướng hoặc tìm những nhóm có đặc điểm tương đồng.</p>
           </div>
           <Button asChild className="finai-forecast-cta mt-6 w-full"><Link to="/forecast">Mở dự báo & phân nhóm <ArrowUpRight className="size-4" /></Link></Button>
         </aside>
@@ -148,8 +154,18 @@ function Dashboard() {
       <section id="phan-tich" className="scroll-mt-24 space-y-5">
         <PageHeading eyebrow="Không gian phân tích" title="Đặt câu hỏi cho dữ liệu"
           description="Làm lần lượt ba bước bên dưới. Kết quả phân tích sẽ xuất hiện ngay sau câu hỏi của bạn." />
-        <DataAnalyzer />
+        <DataAnalyzer onDatasetSaved={(dataset) => setDatasets((items) => [dataset, ...items.filter((item) => item.id !== dataset.id)])} />
       </section>
+      {previewDataset && <DatasetPreviewModal
+        key={previewDataset.id}
+        dataset={previewDataset}
+        open={true}
+        onOpenChange={(open) => { if (!open) setPreviewDataset(null) }}
+        onDatasetUpdated={(updated) => {
+          setDatasets((items) => items.map((item) => item.id === updated.id ? updated : item))
+          setPreviewDataset(updated)
+        }}
+      />}
     </div>
   )
 }

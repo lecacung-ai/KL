@@ -1,7 +1,7 @@
 import { PageHeading } from "@/components/Common/PageHeading"
 import { useState, useEffect } from "react"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
-import { Plus, Search, FileSpreadsheet, Eye, Download, Trash2, RefreshCw, HardDrive, Rows, Layers, CheckCircle2, AlertCircle, MessageSquareText } from "lucide-react"
+import { Plus, Search, FileSpreadsheet, Eye, Trash2, RefreshCw, HardDrive, Rows, Layers, CheckCircle2, AlertCircle, MessageSquareText } from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -26,6 +26,7 @@ import {
 import { DatasetsService, Dataset } from "@/services/datasetsService"
 import { UploadDatasetDialog } from "@/components/Datasets/UploadDatasetDialog"
 import { DatasetPreviewModal } from "@/components/Datasets/DatasetPreviewModal"
+import { DownloadDatasetButton } from "@/components/Datasets/DownloadDatasetButton"
 
 export const Route = createFileRoute("/_layout/datasets")({
   component: DatasetsPage,
@@ -355,15 +356,7 @@ function DatasetsPage() {
                           <Eye className="size-4" />
                         </Button>
 
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => window.open(DatasetsService.getDownloadUrl(item.id), "_blank")}
-                          className="size-8 text-muted-foreground hover:text-foreground"
-                          title="Tải về tệp gốc"
-                        >
-                          <Download className="size-4" />
-                        </Button>
+                        <DownloadDatasetButton dataset={item} iconOnly />
 
                         <Button
                           variant="ghost"

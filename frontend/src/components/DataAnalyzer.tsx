@@ -1,5 +1,5 @@
 import { ResultFigure } from "@/components/Common/ResultFigure"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import axios from "axios"
 import { Send, FileSpreadsheet, Check, Copy, Code2, Database, TrendingUp, SlidersHorizontal, Upload, BarChart3, PieChart, AlertCircle, Download, CheckCircle2, ShieldCheck, Loader2, RotateCcw, MessageSquareText } from "lucide-react"
 import { toast } from "sonner"
@@ -36,13 +36,45 @@ interface AnalysisResult {
   security_status?: "passed" | "blocked" | "idle"
 }
 
-export default function DataAnalyzer() {
+export default function DataAnalyzer({ onDatasetSaved }: { onDatasetSaved?: (dataset: Dataset) => void }) {
   const [file, setFile] = useState<File | null>(null)
   const [datasets, setDatasets] = useState<Dataset[]>([])
   const [selectedDatasetId, setSelectedDatasetId] = useState<string>("")
   const [query, setQuery] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [isCopied, setIsCopied] = useState(false)
+  const [isSavingFile, setIsSavingFile] = useState(false)
+  const [savedFile, setSavedFile] = useState<File | null>(null)
+  const saveInFlight = useRef(false)
+
+  const saveLocalFile = async () => {
+    if (!file || saveInFlight.current || savedFile === file) return
+    const token = sessionStorage.getItem("access_token")
+    if (!token) {
+      toast.error("Vui lòng đăng nhập trước khi lưu tệp.")
+      return
+    }
+    if (file.size > 25 * 1024 * 1024) {
+      toast.error("Chỉ lưu tệp tối đa 25MB.")
+      return
+    }
+    const fileToSave = file
+    saveInFlight.current = true
+    setIsSavingFile(true)
+    try {
+      const dataset = await DatasetsService.uploadDataset(fileToSave)
+      if (sessionStorage.getItem("access_token") !== token) return
+      setDatasets((items) => [dataset, ...items.filter((item) => item.id !== dataset.id)])
+      setSavedFile(fileToSave)
+      onDatasetSaved?.(dataset)
+      toast.success("Đã lưu tệp vào kho dữ liệu.")
+    } catch {
+      toast.error("Không thể lưu tệp. Vui lòng kiểm tra kết nối và thử lại.")
+    } finally {
+      saveInFlight.current = false
+      setIsSavingFile(false)
+    }
+  }
 
   // Scope selection state (Module 4)
   const [availableColumns, setAvailableColumns] = useState<ColumnMetaSimple[]>([])
@@ -305,12 +337,12 @@ export default function DataAnalyzer() {
         <div className="min-w-0 max-w-2xl">
           <div className="flex items-center gap-4">
             <span className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-[#f5c579] text-[#173b47]"><MessageSquareText aria-hidden="true" className="size-7" /></span>
-            <div><p className="finai-eyebrow text-[#f5c579]">Phân tích dữ liệu</p>
-            <h2 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">Đặt câu hỏi, tìm câu trả lời</h2></div>
+            <div><p className="finai-eyebrow">Phân tích dữ liệu</p>
+            <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Đặt câu hỏi, tìm câu trả lời</h2></div>
           </div>
-          <p className="mt-4 max-w-xl text-sm leading-7 text-white/80">Chọn một tệp, chọn các cột cần xem rồi nhập câu hỏi bằng tiếng Việt.</p>
+          <p className="mt-4 max-w-xl text-sm leading-7 text-muted-foreground">Chọn một tệp, chọn các cột cần xem rồi nhập câu hỏi bằng tiếng Việt.</p>
         </div>
-        <Button asChild variant="outline" size="sm" className="border-white/25 bg-white/10 text-white hover:bg-white/20 hover:text-white"><Link to="/datasets"><Database className="size-4" /> Kho dữ liệu ({datasets.length})</Link></Button>
+        <Button asChild variant="outline" size="sm"><Link to="/datasets"><Database className="size-4" /> Kho dữ liệu ({datasets.length})</Link></Button>
       </div>
 
       <div className="finai-analyzer-workflow space-y-8 bg-card p-4 sm:p-7">
@@ -402,6 +434,16 @@ export default function DataAnalyzer() {
                   }}
                 />
               </label>
+              {file && (
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-xs text-muted-foreground">Lưu tệp để dùng lại trong Kho dữ liệu.</p>
+                  <LoadingButton type="button" variant="outline" size="sm" loading={isSavingFile}
+                    disabled={isSavingFile || isLoading || isInspecting || savedFile === file} onClick={saveLocalFile}>
+                    <Database aria-hidden="true" className="size-4" />
+                    {savedFile === file ? "Đã lưu vào kho" : "Lưu vào kho dữ liệu"}
+                  </LoadingButton>
+                </div>
+              )}
             </div>
           </div>
         </div>

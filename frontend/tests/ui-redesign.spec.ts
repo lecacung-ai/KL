@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test"
+import { readFile } from "node:fs/promises"
 
 const syntheticDataset = {
   id: "synthetic-ui-file",
@@ -60,6 +61,60 @@ async function mockWorkspace(page: Page, baseURL: string, admin = false) {
     await route.fulfill({ headers, json })
   })
   return { mutations, unexpected }
+}
+
+for (const surface of ["list", "detail"]) {
+  test(`authenticated original-file download from ${surface}`, async ({ page, baseURL }) => {
+    const calls = await mockWorkspace(page, baseURL!)
+    const fileBody = "month,revenue\n2025-01-01,100\n"
+    let downloads = 0
+    await page.route("**/api/v1/datasets/*/download", async (route) => {
+      const headers = {
+        "access-control-allow-origin": "*",
+        "access-control-allow-headers": "authorization,content-type",
+      }
+      if (route.request().method() === "OPTIONS") {
+        await route.fulfill({ status: 204, headers })
+        return
+      }
+      expect(route.request().headers().authorization).toBe("Bearer synthetic-ui-token")
+      downloads += 1
+      await route.fulfill({ headers, contentType: "text/csv", body: fileBody })
+    })
+    await page.goto("/datasets")
+    if (surface === "detail") {
+      await page.getByTitle("Xem cấu trúc & dữ liệu mẫu").click()
+    }
+    const popup = page.waitForEvent("popup", { timeout: 500 }).then(() => true, () => false)
+    const downloaded = page.waitForEvent("download")
+    const container = surface === "detail" ? page.getByRole("dialog") : page
+    await container.getByRole("button", { name: `Tải tệp gốc: ${syntheticDataset.filename}`, exact: true }).click()
+    const file = await downloaded
+    expect(file.suggestedFilename()).toBe(syntheticDataset.filename)
+    expect(await readFile((await file.path())!, "utf8")).toBe(fileBody)
+    expect(downloads).toBe(1)
+    expect(await popup).toBe(false)
+    expect(calls.mutations).toEqual([])
+  })
+}
+
+for (const status of [401, 403, 404]) {
+  test(`download ${status} shows an error instead of navigating`, async ({ page, baseURL }) => {
+    await mockWorkspace(page, baseURL!)
+    await page.route("**/api/v1/datasets/*/download", async (route) => {
+      const headers = { "access-control-allow-origin": "*", "access-control-allow-headers": "authorization,content-type" }
+      await route.fulfill({ status: route.request().method() === "OPTIONS" ? 204 : status, headers })
+    })
+    await page.goto("/datasets")
+    const button = page.getByRole("button", { name: `Tải tệp gốc: ${syntheticDataset.filename}`, exact: true })
+    await button.click()
+    const message = status === 401 ? "Phiên đăng nhập không hợp lệ hoặc đã hết hạn. Vui lòng đăng nhập lại."
+      : status === 403 ? "Bạn không có quyền tải tệp này hoặc đường dẫn lưu trữ không hợp lệ."
+        : "Không tìm thấy tệp hoặc dữ liệu đã bị xóa. Vui lòng làm mới kho dữ liệu."
+    await expect(page.getByText(message, { exact: true })).toBeVisible()
+    await expect(button).toBeEnabled()
+    await expect(page).toHaveURL(/\/datasets$/)
+  })
 }
 
 for (const width of [360, 390, 768, 1024, 1440]) {

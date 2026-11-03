@@ -1,5 +1,53 @@
 # Nhật ký cải thiện giao diện
 
+## 03/11/2026 — Sửa tải tệp gốc thiếu Bearer token
+
+Nguyên nhân xác nhận từ source và ảnh: hai nút tải ở danh sách Kho dữ liệu và DatasetPreviewModal mở URL API bằng window.open, nên request điều hướng không có Authorization và nhận HTTP_401/Not authenticated.
+
+Cách sửa: thêm DownloadDatasetButton dùng chung, thay cả hai nút window.open. Component GET endpoint cũ bằng axios responseType blob, gắn Bearer lấy từ sessionStorage, timeout 60 giây; tạo object URL và anchor download giữ tên/đuôi gốc (loại dấu phân cách đường dẫn), dọn anchor và thu hồi URL sau khi khởi động tải. Không đưa token vào URL, không bỏ quyền backend. Ref chống request lặp, nút loading/disabled, thông báo riêng 401/403/404/503 và lỗi mạng; không xóa phiên vì lỗi quyền dataset. Kiểm tra token chưa đổi trước khi lưu response về máy. Đây là tải tệp gốc, không chuyển Excel thành CSV.
+
+Phạm vi: frontend/src/components/Datasets/DownloadDatasetButton.tsx (mới), DatasetPreviewModal.tsx, frontend/src/routes/_layout/datasets.tsx. Không thêm nút tải trở lại thẻ tổng quan đã bỏ theo yêu cầu. Modal tổng quan dùng cùng component chi tiết nên nhận bản sửa này.
+
+Kiểm chứng đã chạy: node node_modules/typescript/bin/tsc -p frontend/tsconfig.build.json --noEmit, exit 0; git diff --check không lỗi whitespace. Typecheck build loại tests nên không xem là xác minh mã Playwright. Bổ sung 5 test mock trong frontend/tests/ui-redesign.spec.ts: list/detail gửi Bearer, nội dung tải đúng, tên file giữ nguyên, không mở popup; 401/403/404 báo lỗi và giữ trang. Các test Playwright chưa chạy; chưa gọi API thật, chưa kiểm tra tải trên browser, chưa ghi Pass end-to-end. Cần người dùng build frontend --outDir dist và cập nhật assets container; không cần sửa/build Python backend.
+
+Giới hạn: tải blob vào bộ nhớ trình duyệt; file rất lớn cần giải pháp streaming riêng. Cơ chế xác thực và kiểm quyền server giữ nguyên. Không commit/push hoặc tải lại file thật để thử.
+
+## 03/11/2026 — Chẩn đoán tải tệp bị 401 (chưa sửa)
+
+Ảnh người dùng: mở /api/v1/datasets/{id}/download trong tab mới trả HTTP_401, Not authenticated. Source xác nhận hai nút trong DatasetPreviewModal.tsx và routes/_layout/datasets.tsx dùng window.open(getDownloadUrl(...), '_blank'); không gắn Authorization. API download yêu cầu CurrentUser. Token ứng dụng lưu sessionStorage và các request axios của service khác gắn Bearer, nhưng điều hướng trình duyệt không tự gắn header này. Không có bằng chứng file mất hoặc tài khoản không có quyền; lỗi xảy ra ở xác thực.
+
+Hướng sửa: dùng request tải bytes có Bearer qua client hiện có, tạo blob URL để tải giữ tên/định dạng gốc, xử lý 401/403/404 và loading. Không bỏ auth backend hoặc đưa token vào URL. Hiện chỉ chẩn đoán bằng source, chưa triển khai hoặc kiểm thử live.
+
+## 03/11/2026 — Mở chi tiết từ thẻ tệp tổng quan
+
+Yêu cầu bấm tệp phải hiện chi tiết. Chuyển thẻ tệp thành button thực, hỗ trợ chuột/Enter/Space, có focus và aria-label chứa tên tệp, thêm nhãn “Xem chi tiết”. Mở DatasetPreviewModal hiện có của Kho dữ liệu với đúng đối tượng Dataset; đóng modal xóa selection, mở tệp khác tạo modal tương ứng. Callback cập nhật đồng bộ metadata thẻ nếu người dùng dùng thao tác cập nhật sẵn trong modal. Không tự gọi AI/upload/download khi bấm thẻ. Modal dùng schema/sample/metadata hiện có; không tuyên bố hiển thị toàn bộ nội dung file hoặc kiểm tra lại file vật lý. Không thay logic bên trong modal.
+
+File sửa frontend/src/routes/_layout/index.tsx. Rà source và diff whitespace; chưa build/chạy browser hay API. Cần kiểm tra click từng tệp, keyboard, Escape, đổi tệp và giữ trạng thái form phân tích sau đóng. Không sửa backend, không commit/push.
+
+## 03/11/2026 — Hoàn thiện tiêu đề khung dự báo
+
+Phản hồi khung bên phải trống: thêm tiêu đề “Dự báo & phân nhóm” và icon TrendingUp phía trên ảnh tangtruong1, bỏ đoạn mô tả dài. Tăng giới hạn ảnh từ 280 lên 320px để cân đối diện tích với danh sách tệp; giữ tỷ lệ ảnh, nút và route /forecast. Chữ/nền dùng token theme hiện có. File sửa: frontend/src/routes/_layout/index.tsx. Đã rà source/whitespace, chưa build hoặc xác minh browser. Không thay nghiệp vụ/API, không commit/push.
+
+## 03/11/2026 — Bỏ tải tệp trên tổng quan, chuyển các khối chính sang gam sáng
+
+Theo yêu cầu mới, gỡ nút tải trên các thẻ tệp và xóa component DatasetDownloadButton vừa thêm (chỉ phục vụ nút này). Giữ chức năng lưu tệp cục bộ vào kho. Không xóa endpoint download hoặc thao tác tải có sẵn ở trang kho dữ liệu.
+
+Thay nền xanh đậm cố định của hero, khối dự báo và header phân tích bằng trắng/ngọc nhạt/lam nhạt; chuyển chữ trắng sang token foreground/muted để dễ đọc trên nền sáng. Bỏ lớp phủ tối trên ảnh hero; giữ ảnh tangtruong1 và nút xanh lá. Đổi defaultTheme trong frontend/src/main.tsx sang light cho phiên chưa có lựa chọn; giữ chế độ tối tùy chọn và thiết lập theme đã lưu, không tự ép đổi lựa chọn của người dùng.
+
+Kiểm tra source và git diff --check, chưa build hoặc xác minh trình duyệt. File sửa: frontend/src/routes/_layout/index.tsx, frontend/src/components/DataAnalyzer.tsx, frontend/src/index.css. Component download vừa tạo bị xóa; có thể phục hồi từ mô tả lượt trước nếu sau này cần. Không sửa backend, không xóa file người dùng, không commit/push.
+
+## 03/11/2026 — Lưu tệp cục bộ và tải tệp trong tổng quan
+
+Yêu cầu: thêm nút lưu ở vùng tệp từ máy tính và nút tải CSV trên các thẻ đang làm việc.
+
+Cách triển khai: DataAnalyzer gọi DatasetsService.uploadDataset hiện có khi người dùng bấm “Lưu vào kho dữ liệu”; không tự lưu khi chọn file. Có khóa gửi trùng bằng ref và trạng thái loading, giới hạn 25MB theo dialog upload hiện có, kiểm tra phiên và xử lý lỗi. Tệp vừa lưu được thêm vào danh sách trong analyzer và qua callback onDatasetSaved vào tổng quan; không tự gửi phân tích, không reset câu hỏi/cột. Nút đã lưu bị khóa cho cùng đối tượng File, không tuyên bố chống trùng nội dung trên server.
+
+DatasetDownloadButton dùng GET download hiện có qua axios blob kèm Bearer, timeout 60s, khóa click lặp, kiểm tra phiên trước khi tải blob về máy và thu hồi object URL. Giữ tên/đuôi tệp gốc: CSV ghi “Tải file CSV”, XLS/XLSX ghi “Tải file Excel”. Backend hiện không có contract chuyển Excel sang CSV trong phạm vi này; không đổi đuôi giả hoặc chỉ xuất sample_data thiếu dòng. Nếu yêu cầu mọi file đều xuất CSV, cần chức năng chuyển đổi riêng xác định sheet/encoding.
+
+File thay đổi: frontend/src/components/DataAnalyzer.tsx; frontend/src/components/Datasets/DatasetDownloadButton.tsx; frontend/src/routes/_layout/index.tsx. Không sửa backend, service contract hoặc dependency; không commit/push. Đã rà source và git diff --check; chưa chạy build/test/browser hay API thật theo quy trình người dùng tự chạy.
+
+Checklist nghiệm thu còn chờ: lưu CSV/Excel thành công cập nhật thẻ; lưu lỗi không báo thành công; bấm lặp chỉ gửi một upload; tải file có token, 403/404 hiển thị lỗi; CSV tải đủ nội dung và Excel giữ định dạng; không phát sinh Gemini call khi lưu/tải. Giới hạn hiện tại: file tải blob nằm trong bộ nhớ, chưa có giới hạn byte streaming; callback cập nhật chỉ áp dụng màn tổng quan đang mở.
+
 ## 03/11/2026 — Thay ảnh tăng trưởng và nâng độ phân lớp dark mode
 
 Theo phản hồi dark mode còn chìm, nâng bề mặt card/popover, chữ phụ và độ rõ viền trong token tối; nền trang xanh navy sâu, sidebar tách lớp. Các vùng thống kê, thẻ tệp và ba bước phân tích dùng ngọc/lam/tím/hổ phách sáng hơn; khung dự báo có viền tím và nền lam–tím, giữ chữ sáng. Thay asset tham chiếu tangtruong.jpg bằng ảnh người dùng cung cấp tangtruong1.jpg, giữ ảnh cũ trên đĩa; dùng tỷ lệ 3:2 theo ảnh mới, không ép vuông tạo khoảng trắng. Giữ nút xanh lá và route /forecast.
