@@ -16,13 +16,15 @@ class ItemService:
     def __init__(self, repository: ItemRepository = item_repository) -> None:
         self.repository = repository
 
-    def list(self, session: Session, user: User, *, skip: int, limit: int):
-        return self.repository.list_for_owner(session, owner_id=user.id, is_admin=user.is_superuser, skip=skip, limit=limit)
+    def list(self, session: Session, user: User, *, skip: int, limit: int) -> tuple[list[Item], int]:
+        return self.repository.list_for_owner(
+            session, owner_id=user.id, is_admin=user.is_superuser, skip=skip, limit=limit
+        )
 
     def get(self, session: Session, item_id: uuid.UUID, user: User) -> Item:
         item = self.repository.get_by_id(session, item_id)
         if not item:
-            raise AppException(ErrorCode.RESOURCE_NOT_FOUND, detail="Item not found")
+            raise AppException(ErrorCode.ITEM_NOT_FOUND, detail="Item not found")
         self._ensure_access(item, user)
         return item
 

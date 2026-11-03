@@ -1,13 +1,33 @@
 import { PageHeading } from "@/components/Common/PageHeading"
 import { useState, useEffect } from "react"
 import { createFileRoute } from "@tanstack/react-router"
-import { History as HistoryIcon, Search, RefreshCw, Clock, Cpu, CheckCircle2, AlertCircle, Eye, Trash2, Download, Copy, Check, FileSpreadsheet, Code2, BarChart3, Terminal } from "lucide-react"
+import {
+  History as HistoryIcon,
+  Search,
+  RefreshCw,
+  Clock,
+  Cpu,
+  CheckCircle2,
+  AlertCircle,
+  Eye,
+  Trash2,
+  Download,
+  Copy,
+  Check,
+  FileSpreadsheet,
+  Code2,
+  BarChart3,
+  Terminal,
+  Info,
+  X,
+} from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent } from "@/components/ui/card"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Table,
   TableBody,
@@ -29,13 +49,14 @@ import {
   AnalysisHistoryItem,
   HistoryStats,
 } from "@/services/historyService"
+import { ResultFigure } from "@/components/Common/ResultFigure"
 
 export const Route = createFileRoute("/_layout/history")({
   component: HistoryPage,
   head: () => ({
     meta: [
       {
-        title: "Lịch Sử Phân Tích & Giám Sát Tài Nguyên - FinAI",
+        title: "Lịch Sử Phân Tích - FinAI",
       },
     ],
   }),
@@ -53,12 +74,14 @@ function HistoryPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
 
-  // Modal xem chi tiết
+  // Modal detail
   const [selectedItem, setSelectedItem] = useState<AnalysisHistoryItem | null>(null)
   const [isDetailOpen, setIsDetailOpen] = useState(false)
+  const [activeDetailTab, setActiveDetailTab] = useState<string>("overview")
   const [hasCopiedCode, setHasCopiedCode] = useState(false)
+  const [hasCopiedStdout, setHasCopiedStdout] = useState(false)
 
-  // Dialog xác nhận xóa toàn bộ
+  // Clear dialog
   const [isClearAllDialogOpen, setIsClearAllDialogOpen] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
 
@@ -76,7 +99,7 @@ function HistoryPage() {
       setHistoryItems(histRes.data)
       setStats(statRes)
     } catch {
-      toast.error("Không thể tải dữ liệu lịch sử phân tích")
+      toast.error("Không thể tải dữ liệu lịch sử")
     } finally {
       setIsLoading(false)
     }
@@ -87,7 +110,7 @@ function HistoryPage() {
     try {
       await HistoryService.deleteHistoryItem(id)
       setHistoryItems(historyItems.filter((item) => item.id !== id))
-      toast.success("Đã xóa bản ghi lịch sử")
+      toast.success("Đã xóa bản ghi")
       const statRes = await HistoryService.getStats()
       setStats(statRes)
     } catch {
@@ -107,7 +130,7 @@ function HistoryPage() {
         avg_memory_mb: 0,
       })
       setIsClearAllDialogOpen(false)
-      toast.success("Đã dọn dẹp sạch toàn bộ lịch sử phân tích")
+      toast.success("Đã dọn dẹp sạch toàn bộ lịch sử")
     } catch {
       toast.error("Lỗi khi xóa lịch sử")
     } finally {
@@ -118,8 +141,15 @@ function HistoryPage() {
   const handleCopyCode = (code: string) => {
     navigator.clipboard.writeText(code)
     setHasCopiedCode(true)
-    toast.success("Đã sao chép mã nguồn vào bộ nhớ tạm")
+    toast.success("Đã sao chép mã")
     setTimeout(() => setHasCopiedCode(false), 2000)
+  }
+
+  const handleCopyStdout = (text: string) => {
+    navigator.clipboard.writeText(text)
+    setHasCopiedStdout(true)
+    toast.success("Đã sao chép kết quả")
+    setTimeout(() => setHasCopiedStdout(false), 2000)
   }
 
   const handleDownloadChart = (imageSrc: string) => {
@@ -129,340 +159,459 @@ function HistoryPage() {
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
-    toast.success("Đã tải biểu đồ xuống máy")
+    toast.success("Đã tải biểu đồ")
+  }
+
+  const openDetailModal = (item: AnalysisHistoryItem) => {
+    setSelectedItem(item)
+    setActiveDetailTab(item.chart_image ? "chart" : "overview")
+    setIsDetailOpen(true)
   }
 
   return (
-    <div className="flex min-w-0 flex-col gap-7 pb-8 w-full">
-      <PageHeading eyebrow="Mỗi lần khám phá đều có dấu vết" title="Lịch sử phân tích"
-        description="Xem lại những câu hỏi, kết quả và thông tin thực thi đã được lưu."
-        action={<div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" size="sm" onClick={loadData} disabled={isLoading} className="gap-2">
-            <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} /> Làm mới
-          </Button>
-          {historyItems.length > 0 && (
-            <Button variant="destructive" size="sm" onClick={() => setIsClearAllDialogOpen(true)} className="gap-2">
-              <Trash2 className="h-4 w-4" /> Dọn dẹp lịch sử
+    <div className="w-full min-w-0 max-w-full space-y-5 pb-10">
+      <PageHeading
+        title="Lịch sử phân tích"
+        description="Nhật ký các lượt phân tích và mã nguồn AI thực thi."
+        action={
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" size="sm" onClick={loadData} disabled={isLoading} className="gap-1.5 shadow-2xs h-8 text-xs">
+              <RefreshCw className={`size-3.5 ${isLoading ? "animate-spin" : ""}`} /> Làm mới
             </Button>
-          )}
-        </div>} />
+            {historyItems.length > 0 && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setIsClearAllDialogOpen(true)}
+                className="gap-1.5 shadow-2xs h-8 text-xs"
+              >
+                <Trash2 className="size-3.5" /> Dọn dẹp
+              </Button>
+            )}
+          </div>
+        }
+      />
 
-      {/* Metrics Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="border-border bg-card  p-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold tracking-normal text-muted-foreground">Tổng Lượt Truy Vấn</span>
-            <HistoryIcon className="h-4 w-4 text-primary" />
+      {/* KPI Metrics Strip */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 min-w-0">
+        <div className="rounded-xl border border-border/80 bg-card p-3 sm:p-4 shadow-2xs flex items-center justify-between min-w-0">
+          <div className="space-y-0.5 min-w-0">
+            <p className="text-xs text-muted-foreground">Tổng truy vấn</p>
+            <h3 className="text-lg sm:text-xl font-semibold tracking-tight text-foreground">{stats.total_queries}</h3>
           </div>
-          <div className="text-2xl font-semibold mt-2 text-foreground">{stats.total_queries}</div>
-          <span className="text-xs text-muted-foreground">Toàn bộ câu hỏi & tác vụ</span>
-        </Card>
+          <div className="flex size-8.5 items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0">
+            <HistoryIcon className="size-4" />
+          </div>
+        </div>
 
-        <Card className="border-border bg-card  p-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold tracking-normal text-muted-foreground">Tỷ Lệ Thành Công</span>
-            <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+        <div className="rounded-xl border border-border/80 bg-card p-3 sm:p-4 shadow-2xs flex items-center justify-between min-w-0">
+          <div className="space-y-0.5 min-w-0">
+            <p className="text-xs text-muted-foreground">Tỷ lệ thành công</p>
+            <h3 className="text-lg sm:text-xl font-semibold tracking-tight text-emerald-600 dark:text-emerald-400">
+              {stats.success_rate_pct}%
+            </h3>
           </div>
-          <div className="text-2xl font-semibold mt-2 text-emerald-500">{stats.success_rate_pct}%</div>
-          <span className="text-xs text-muted-foreground">Sandbox xử lý chính xác</span>
-        </Card>
+          <div className="flex size-8.5 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0">
+            <CheckCircle2 className="size-4" />
+          </div>
+        </div>
 
-        <Card className="border-border bg-card  p-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold tracking-normal text-muted-foreground">Thời Gian Phản Hồi TB</span>
-            <Clock className="h-4 w-4 text-amber-500" />
+        <div className="rounded-xl border border-border/80 bg-card p-3 sm:p-4 shadow-2xs flex items-center justify-between min-w-0">
+          <div className="space-y-0.5 min-w-0">
+            <p className="text-xs text-muted-foreground">Thời gian TB</p>
+            <h3 className="text-lg sm:text-xl font-semibold tracking-tight text-foreground">
+              {stats.avg_time_ms > 1000 ? `${(stats.avg_time_ms / 1000).toFixed(2)}s` : `${stats.avg_time_ms}ms`}
+            </h3>
           </div>
-          <div className="text-2xl font-semibold mt-2 text-foreground">
-            {stats.avg_time_ms > 1000 ? `${(stats.avg_time_ms / 1000).toFixed(2)}s` : `${stats.avg_time_ms}ms`}
+          <div className="flex size-8.5 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 shrink-0">
+            <Clock className="size-4" />
           </div>
-          <span className="text-xs text-muted-foreground">Tốc độ sinh mã & chạy Sandbox</span>
-        </Card>
+        </div>
 
-        <Card className="border-border bg-card  p-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold tracking-normal text-muted-foreground">Dung Lượng Bộ Nhớ TB</span>
-            <Cpu className="h-4 w-4 text-primary" />
+        <div className="rounded-xl border border-border/80 bg-card p-3 sm:p-4 shadow-2xs flex items-center justify-between min-w-0">
+          <div className="space-y-0.5 min-w-0">
+            <p className="text-xs text-muted-foreground">Bộ nhớ TB</p>
+            <h3 className="text-lg sm:text-xl font-semibold tracking-tight text-foreground">{stats.avg_memory_mb} MB</h3>
           </div>
-          <div className="text-2xl font-semibold mt-2 text-foreground">{stats.avg_memory_mb} MB</div>
-          <span className="text-xs text-muted-foreground">Tiến trình con cô lập an toàn</span>
-        </Card>
+          <div className="flex size-8.5 items-center justify-center rounded-lg bg-teal-500/10 text-teal-600 dark:text-teal-400 shrink-0">
+            <Cpu className="size-4" />
+          </div>
+        </div>
       </div>
 
       {/* Filter & Search Bar */}
-      <div className="flex flex-col md:flex-row items-center justify-between gap-3">
-        <div className="relative w-full md:w-80">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 min-w-0">
+        <div className="relative flex-1 max-w-sm min-w-0">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
-            placeholder="Tìm kiếm nội dung câu hỏi, tệp dữ liệu..."
+            placeholder="Tìm theo nội dung..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 h-9 text-xs"
+            className="pl-9 h-8.5 text-xs"
           />
         </div>
 
-        <div className="flex items-center gap-2 w-full md:w-auto">
-          <span className="text-xs text-muted-foreground shrink-0">Lọc theo trạng thái:</span>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-1.5 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-1 focus:ring-ring"
-          >
-            <option value="all">Tất cả trạng thái</option>
-            <option value="success">Thành công (Passed)</option>
-            <option value="error">Có lỗi (Error)</option>
-          </select>
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="flex rounded-lg border border-border/80 bg-muted/40 p-0.5">
+            <button
+              onClick={() => setStatusFilter("all")}
+              className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all ${
+                statusFilter === "all"
+                  ? "bg-background text-foreground shadow-2xs"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Tất cả
+            </button>
+            <button
+              onClick={() => setStatusFilter("success")}
+              className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all ${
+                statusFilter === "success"
+                  ? "bg-background text-foreground shadow-2xs"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Thành công
+            </button>
+            <button
+              onClick={() => setStatusFilter("error")}
+              className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all ${
+                statusFilter === "error"
+                  ? "bg-background text-foreground shadow-2xs"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Lỗi
+            </button>
+          </div>
+
+          {(searchQuery || statusFilter !== "all") && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setSearchQuery("")
+                setStatusFilter("all")
+              }}
+              className="h-8 text-xs text-muted-foreground hover:text-foreground gap-1 px-2"
+            >
+              <X className="size-3.5" /> Xóa lọc
+            </Button>
+          )}
         </div>
       </div>
 
-      {/* History Table */}
-      <Card className="border-border shadow-sm">
-        <CardContent className="p-0">
-          {isLoading ? (
-            <div className="p-12 text-center text-xs text-muted-foreground flex flex-col items-center justify-center gap-2">
-              <RefreshCw className="h-5 w-5 animate-spin text-primary" />
-              Đang tải danh sách lịch sử phân tích...
-            </div>
-          ) : historyItems.length === 0 ? (
-            <div className="p-12 text-center text-xs text-muted-foreground flex flex-col items-center justify-center gap-2">
-              <HistoryIcon className="h-8 w-8 text-muted-foreground/40 mb-1" />
-              Chưa có bản ghi phân tích nào được lưu trữ.
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/40">
-                    <TableHead className="font-semibold text-xs">Thời Gian</TableHead>
-                    <TableHead className="font-semibold text-xs">Tệp Dữ Liệu</TableHead>
-                    <TableHead className="font-semibold text-xs">Yêu Cầu / Tác Vụ Phân Tích</TableHead>
-                    <TableHead className="font-semibold text-xs text-center">Thời Gian Chạy</TableHead>
-                    <TableHead className="font-semibold text-xs text-center">Bộ Nhớ</TableHead>
-                    <TableHead className="font-semibold text-xs text-center">Trạng Thái</TableHead>
-                    <TableHead className="font-semibold text-xs text-right">Thao Tác</TableHead>
+      {/* History Table - No pagination controls as requested */}
+      <div className="w-full min-w-0 max-w-full rounded-xl border border-border/80 bg-card shadow-2xs overflow-hidden">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader className="bg-muted/30">
+              <TableRow className="border-border/60 hover:bg-transparent">
+                <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Thời gian</TableHead>
+                <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Dataset</TableHead>
+                <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Yêu cầu / Câu hỏi</TableHead>
+                <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground text-center">Thời gian</TableHead>
+                <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground text-center">Bộ nhớ</TableHead>
+                <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground text-center">Trạng thái</TableHead>
+                <TableHead className="text-right font-semibold text-xs uppercase tracking-wider text-muted-foreground pr-4">Hành động</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                Array.from({ length: 5 }).map((_, idx) => (
+                  <TableRow key={idx}>
+                    <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-60" /></TableCell>
+                    <TableCell className="text-center"><Skeleton className="h-4 w-14 mx-auto" /></TableCell>
+                    <TableCell className="text-center"><Skeleton className="h-4 w-14 mx-auto" /></TableCell>
+                    <TableCell className="text-center"><Skeleton className="h-4 w-20 mx-auto" /></TableCell>
+                    <TableCell className="text-right pr-4"><Skeleton className="h-8 w-16 ml-auto" /></TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {historyItems.map((item) => {
-                    const isSuccess = item.status === "success"
-                    return (
-                      <TableRow
-                        key={item.id}
-                        onClick={() => {
-                          setSelectedItem(item)
-                          setIsDetailOpen(true)
-                        }}
-                        className="cursor-pointer hover:bg-muted/30 transition-colors"
-                      >
-                        <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                          {new Date(item.created_at).toLocaleString("vi-VN", {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                            day: "2-digit",
-                            month: "2-digit",
-                            year: "numeric",
-                          })}
-                        </TableCell>
-                        <TableCell className="text-xs font-medium">
-                          <span className="flex items-center gap-1.5 truncate max-w-[160px]">
-                            <FileSpreadsheet className="h-3.5 w-3.5 text-primary shrink-0" />
-                            {item.dataset_name}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-xs max-w-xs md:max-w-md truncate text-foreground/90 font-medium">
-                          {item.query}
-                        </TableCell>
-                        <TableCell className="text-xs text-center font-mono">
-                          {item.execution_time_ms > 1000
-                            ? `${(item.execution_time_ms / 1000).toFixed(2)}s`
-                            : `${item.execution_time_ms}ms`}
-                        </TableCell>
-                        <TableCell className="text-xs text-center font-mono text-muted-foreground">
-                          {item.memory_mb} MB
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Badge
-                            variant="outline"
-                            className={`text-xs gap-1 ${
-                              isSuccess
-                                ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30"
-                                : "bg-destructive/10 text-destructive border-destructive/30"
-                            }`}
-                          >
-                            {isSuccess ? <CheckCircle2 className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
-                            {isSuccess ? "Thành công" : "Có lỗi"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right whitespace-nowrap">
-                          <div className="flex items-center justify-end gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 text-primary hover:text-primary"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setSelectedItem(item)
-                                setIsDetailOpen(true)
-                              }}
-                            >
-                              <Eye className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 text-destructive hover:text-destructive"
-                              onClick={(e) => handleDeleteItem(item.id, e)}
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                ))
+              ) : historyItems.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="h-40 text-center">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <HistoryIcon className="size-6 text-muted-foreground/50" />
+                      <p className="text-sm font-medium text-foreground">Chưa có bản ghi phân tích nào</p>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                historyItems.map((item) => {
+                  const isSuccess = item.status === "success"
+                  return (
+                    <TableRow
+                      key={item.id}
+                      onClick={() => openDetailModal(item)}
+                      className="border-border/60 cursor-pointer hover:bg-muted/30 transition-colors"
+                    >
+                      <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                        {new Date(item.created_at).toLocaleString("vi-VN", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                        })}
+                      </TableCell>
 
-      {/* Modal Xem Lại Chi Tiết Bản Ghi Phân Tích */}
+                      <TableCell className="text-xs font-medium">
+                        <span className="flex items-center gap-1.5 truncate max-w-[140px]">
+                          <FileSpreadsheet className="size-3.5 text-primary shrink-0" />
+                          <span className="truncate">{item.dataset_name}</span>
+                        </span>
+                      </TableCell>
+
+                      <TableCell className="text-xs max-w-xs md:max-w-md truncate text-foreground font-medium">
+                        {item.query}
+                      </TableCell>
+
+                      <TableCell className="text-xs text-center font-mono text-muted-foreground whitespace-nowrap">
+                        {item.execution_time_ms > 1000
+                          ? `${(item.execution_time_ms / 1000).toFixed(2)}s`
+                          : `${item.execution_time_ms}ms`}
+                      </TableCell>
+
+                      <TableCell className="text-xs text-center font-mono text-muted-foreground whitespace-nowrap">
+                        {item.memory_mb} MB
+                      </TableCell>
+
+                      <TableCell className="text-center whitespace-nowrap">
+                        <Badge
+                          variant="outline"
+                          className={`text-[10px] font-medium gap-1 ${
+                            isSuccess
+                              ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20"
+                              : "bg-destructive/10 text-destructive border-destructive/20"
+                          }`}
+                        >
+                          {isSuccess ? <CheckCircle2 className="size-3" /> : <AlertCircle className="size-3" />}
+                          {isSuccess ? "Thành công" : "Lỗi"}
+                        </Badge>
+                      </TableCell>
+
+                      <TableCell className="text-right whitespace-nowrap pr-4">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-7 text-primary hover:text-primary hover:bg-primary/10"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              openDetailModal(item)
+                            }}
+                            title="Xem chi tiết"
+                          >
+                            <Eye className="size-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                            onClick={(e) => handleDeleteItem(item.id, e)}
+                            title="Xóa bản ghi"
+                          >
+                            <Trash2 className="size-3.5" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+
+      {/* Modal Detail */}
       <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-3xl p-4 sm:p-5">
           {selectedItem && (
-            <>
+            <div className="space-y-3.5 min-w-0">
               <DialogHeader>
                 <div className="flex items-center gap-2">
                   <Badge
                     variant="outline"
-                    className={`text-xs gap-1 ${
+                    className={`text-[10px] font-medium gap-1 ${
                       selectedItem.status === "success"
-                        ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30"
-                        : "bg-destructive/10 text-destructive border-destructive/30"
+                        ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20"
+                        : "bg-destructive/10 text-destructive border-destructive/20"
                     }`}
                   >
-                    {selectedItem.status === "success" ? <CheckCircle2 className="h-3.5 w-3.5" /> : <AlertCircle className="h-3.5 w-3.5" />}
-                    {selectedItem.status === "success" ? "Thực thi thành công" : "Lỗi thực thi"}
+                    {selectedItem.status === "success" ? <CheckCircle2 className="size-3" /> : <AlertCircle className="size-3" />}
+                    {selectedItem.status === "success" ? "Thành công" : "Lỗi"}
                   </Badge>
-                  <span className="text-xs text-muted-foreground font-mono">
+                  <span className="text-[11px] text-muted-foreground font-mono">
                     {new Date(selectedItem.created_at).toLocaleString("vi-VN")}
                   </span>
                 </div>
-                <DialogTitle className="text-lg font-semibold mt-2 text-foreground">
+                <DialogTitle className="text-sm sm:text-base font-semibold mt-1 text-foreground leading-snug break-words">
                   {selectedItem.query}
                 </DialogTitle>
-                <DialogDescription className="text-xs flex items-center gap-3 pt-1">
-                  <span>Tệp nguồn: <strong>{selectedItem.dataset_name}</strong></span>
-                  <span>Thời gian Sandbox: <strong>{selectedItem.execution_time_ms}ms</strong></span>
-                  <span>Bộ nhớ: <strong>{selectedItem.memory_mb} MB</strong></span>
+                <DialogDescription className="text-xs text-muted-foreground">
+                  Dataset: <strong className="text-foreground">{selectedItem.dataset_name}</strong> • Sandbox: <strong className="text-foreground">{selectedItem.execution_time_ms}ms</strong> • RAM: <strong className="text-foreground">{selectedItem.memory_mb} MB</strong>
                 </DialogDescription>
               </DialogHeader>
 
-              <div className="space-y-4 py-2">
-                {/* Ảnh Biểu Đồ (nếu có) */}
+              {/* Tabs Inside Modal */}
+              <Tabs value={activeDetailTab} onValueChange={setActiveDetailTab} className="w-full min-w-0">
+                <TabsList className="h-8 bg-muted/60 p-0.5">
+                  <TabsTrigger value="overview" className="text-xs h-7 px-2.5 gap-1">
+                    <Info className="size-3" /> Tổng quan
+                  </TabsTrigger>
+                  {selectedItem.chart_image && (
+                    <TabsTrigger value="chart" className="text-xs h-7 px-2.5 gap-1">
+                      <BarChart3 className="size-3 text-primary" /> Biểu đồ
+                    </TabsTrigger>
+                  )}
+                  {selectedItem.stdout && (
+                    <TabsTrigger value="stdout" className="text-xs h-7 px-2.5 gap-1">
+                      <Terminal className="size-3" /> Kết quả
+                    </TabsTrigger>
+                  )}
+                  {selectedItem.ai_code && (
+                    <TabsTrigger value="code" className="text-xs h-7 px-2.5 gap-1">
+                      <Code2 className="size-3" /> Mã Python
+                    </TabsTrigger>
+                  )}
+                  {selectedItem.error_message && (
+                    <TabsTrigger value="error" className="text-xs h-7 px-2.5 gap-1 text-destructive">
+                      <AlertCircle className="size-3" /> Lỗi
+                    </TabsTrigger>
+                  )}
+                </TabsList>
+
+                {/* Tab: Overview */}
+                <TabsContent value="overview" className="space-y-2.5 pt-2 min-w-0">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <div className="p-2.5 rounded-lg border border-border/70 bg-card">
+                      <p className="text-[11px] text-muted-foreground">Thời gian</p>
+                      <p className="text-sm font-semibold mt-0.5">{selectedItem.execution_time_ms} ms</p>
+                    </div>
+                    <div className="p-2.5 rounded-lg border border-border/70 bg-card">
+                      <p className="text-[11px] text-muted-foreground">Bộ nhớ</p>
+                      <p className="text-sm font-semibold mt-0.5">{selectedItem.memory_mb} MB</p>
+                    </div>
+                    <div className="p-2.5 rounded-lg border border-border/70 bg-card">
+                      <p className="text-[11px] text-muted-foreground">Trạng thái</p>
+                      <p className="text-sm font-semibold mt-0.5">{selectedItem.status === "success" ? "Thành công" : "Lỗi"}</p>
+                    </div>
+                    <div className="p-2.5 rounded-lg border border-border/70 bg-card min-w-0">
+                      <p className="text-[11px] text-muted-foreground">Tệp dữ liệu</p>
+                      <p className="text-xs font-semibold truncate mt-0.5">{selectedItem.dataset_name}</p>
+                    </div>
+                  </div>
+
+                  <div className="p-2.5 rounded-lg border border-border/70 bg-muted/20 space-y-1">
+                    <span className="text-[10px] font-semibold text-muted-foreground uppercase">Câu hỏi gốc:</span>
+                    <p className="text-xs text-foreground break-words">{selectedItem.query}</p>
+                  </div>
+                </TabsContent>
+
+                {/* Tab: Chart */}
                 {selectedItem.chart_image && (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground uppercase">
-                      <span className="flex items-center gap-1.5">
-                        <BarChart3 className="h-4 w-4 text-primary" />
-                        Biểu Đồ Trực Quan Hóa
-                      </span>
+                  <TabsContent value="chart" className="space-y-2 pt-2 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">Biểu đồ trực quan hóa:</span>
                       <Button
                         variant="outline"
                         size="sm"
                         className="h-7 text-xs gap-1"
                         onClick={() => handleDownloadChart(selectedItem.chart_image!)}
                       >
-                        <Download className="h-3 w-3" />
-                        Tải ảnh PNG
+                        <Download className="size-3" /> Tải ảnh PNG
                       </Button>
                     </div>
-                    <div className="rounded-lg border border-border bg-slate-950 p-2 flex items-center justify-center">
-                      <img
+                    <div className="rounded-xl border border-border/80 bg-muted/30 p-2 flex items-center justify-center overflow-hidden">
+                      <ResultFigure
                         src={selectedItem.chart_image}
                         alt="Biểu đồ phân tích"
-                        className="max-h-[380px] w-auto object-contain rounded"
                       />
                     </div>
-                  </div>
+                  </TabsContent>
                 )}
 
-                {/* Kết quả số liệu (stdout) */}
+                {/* Tab: Stdout */}
                 {selectedItem.stdout && (
-                  <div className="space-y-1.5">
-                    <span className="text-xs font-semibold text-muted-foreground uppercase flex items-center gap-1.5">
-                      <Terminal className="h-4 w-4 text-primary" />
-                      Kết Quả Tính Toán / Số Liệu (Stdout)
-                    </span>
-                    <pre className="p-3 rounded-md bg-muted/50 border border-border text-xs font-mono whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto">
-                      {selectedItem.stdout}
-                    </pre>
-                  </div>
-                )}
-
-                {/* Mã nguồn Python */}
-                {selectedItem.ai_code && (
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground uppercase">
-                      <span className="flex items-center gap-1.5">
-                        <Code2 className="h-4 w-4 text-primary" />
-                        Mã Nguồn Python Đã Chạy
-                      </span>
+                  <TabsContent value="stdout" className="space-y-1.5 pt-2 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">Kết quả tính toán:</span>
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-7 text-xs gap-1"
+                        className="h-6 text-xs gap-1"
+                        onClick={() => handleCopyStdout(selectedItem.stdout!)}
+                      >
+                        {hasCopiedStdout ? <Check className="size-3 text-emerald-500" /> : <Copy className="size-3" />}
+                        {hasCopiedStdout ? "Đã sao chép" : "Sao chép"}
+                      </Button>
+                    </div>
+                    <pre className="p-3 rounded-lg bg-muted/40 border border-border/70 text-xs font-mono whitespace-pre-wrap leading-relaxed max-h-64 overflow-y-auto break-words">
+                      {selectedItem.stdout}
+                    </pre>
+                  </TabsContent>
+                )}
+
+                {/* Tab: Python Code */}
+                {selectedItem.ai_code && (
+                  <TabsContent value="code" className="space-y-1.5 pt-2 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">Mã Python thực thi:</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 text-xs gap-1"
                         onClick={() => handleCopyCode(selectedItem.ai_code!)}
                       >
-                        {hasCopiedCode ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+                        {hasCopiedCode ? <Check className="size-3 text-emerald-500" /> : <Copy className="size-3" />}
                         {hasCopiedCode ? "Đã sao chép" : "Sao chép mã"}
                       </Button>
                     </div>
-                    <pre className="p-3 rounded-md bg-slate-950 text-slate-100 text-xs font-mono whitespace-pre-wrap leading-relaxed max-h-56 overflow-y-auto border border-slate-800">
+                    <pre className="p-3 rounded-lg bg-slate-950 text-slate-100 text-xs font-mono whitespace-pre-wrap leading-relaxed max-h-64 overflow-y-auto border border-slate-800">
                       {selectedItem.ai_code}
                     </pre>
-                  </div>
+                  </TabsContent>
                 )}
 
-                {/* Lỗi (nếu có) */}
+                {/* Tab: Error */}
                 {selectedItem.error_message && (
-                  <div className="space-y-1.5">
-                    <span className="text-xs font-semibold text-destructive uppercase flex items-center gap-1.5">
-                      <AlertCircle className="h-4 w-4" />
-                      Chi Tiết Lỗi Ghi Nhận
-                    </span>
-                    <pre className="p-3 rounded-md bg-destructive/10 text-destructive text-xs font-mono whitespace-pre-wrap leading-relaxed border border-destructive/20">
+                  <TabsContent value="error" className="space-y-1.5 pt-2 min-w-0">
+                    <span className="text-xs text-destructive font-medium">Chi tiết lỗi:</span>
+                    <pre className="p-3 rounded-lg bg-destructive/10 text-destructive text-xs font-mono whitespace-pre-wrap leading-relaxed border border-destructive/20 max-h-64 overflow-y-auto break-words">
                       {selectedItem.error_message}
                     </pre>
-                  </div>
+                  </TabsContent>
                 )}
-              </div>
+              </Tabs>
 
-              <DialogFooter>
+              <DialogFooter className="mt-3 pt-2 border-t border-border/60">
                 <Button variant="outline" size="sm" onClick={() => setIsDetailOpen(false)}>
                   Đóng
                 </Button>
               </DialogFooter>
-            </>
+            </div>
           )}
         </DialogContent>
       </Dialog>
 
       {/* Confirmation Dialog Clear All */}
       <Dialog open={isClearAllDialogOpen} onOpenChange={setIsClearAllDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle className="text-base font-semibold">Xác nhận dọn dẹp lịch sử</DialogTitle>
+            <DialogTitle className="text-sm font-semibold">Xác nhận dọn dẹp</DialogTitle>
             <DialogDescription className="text-xs">
-              Thao tác này sẽ xóa toàn bộ nhật ký câu hỏi, mã phân tích và ảnh biểu đồ đã lưu. Hành động này không thể hoàn tác.
+              Thao tác này sẽ xóa toàn bộ nhật ký câu hỏi và biểu đồ đã lưu.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="gap-2">
+          <DialogFooter className="gap-2 sm:gap-0 mt-2">
             <Button variant="outline" size="sm" onClick={() => setIsClearAllDialogOpen(false)} disabled={isDeleting}>
-              Hủy bỏ
+              Hủy
             </Button>
             <Button variant="destructive" size="sm" onClick={handleClearAll} disabled={isDeleting}>
-              {isDeleting ? "Đang xóa..." : "Xác nhận xóa sạch"}
+              {isDeleting ? "Đang xóa..." : "Xác nhận xóa"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -33,14 +33,14 @@ const formSchema = z
   .object({
     new_password: z
       .string()
-      .min(1, { message: "Password is required" })
-      .min(8, { message: "Password must be at least 8 characters" }),
+      .min(1, { message: "Mật khẩu không được để trống" })
+      .min(8, { message: "Mật khẩu tối thiểu 8 ký tự" }),
     confirm_password: z
       .string()
-      .min(1, { message: "Password confirmation is required" }),
+      .min(1, { message: "Vui lòng xác nhận mật khẩu" }),
   })
   .refine((data) => data.new_password === data.confirm_password, {
-    message: "The passwords don't match",
+    message: "Mật khẩu xác nhận không khớp",
     path: ["confirm_password"],
   })
 
@@ -85,7 +85,7 @@ function ResetPassword() {
     mutationFn: (data: { new_password: string; token: string }) =>
       LoginService.resetPassword({ body: data }),
     onSuccess: () => {
-      showSuccessToast("Password updated successfully")
+      showSuccessToast("Mật khẩu đã được cập nhật thành công")
       form.reset()
       navigate({ to: "/login" })
     },
@@ -101,27 +101,31 @@ function ResetPassword() {
       <Form {...form}>
         <form
           onSubmit={form.handleSubmit(onSubmit)}
-          className="flex flex-col gap-6"
+          className="flex flex-col gap-5"
         >
-          <div className="flex flex-col items-center gap-2 text-center">
-            <h1 className="text-2xl font-semibold">Đặt lại mật khẩu</h1>
+          <div className="space-y-1">
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">Đặt lại mật khẩu</h1>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Nhập mật khẩu mới an toàn cho tài khoản của bạn.
+            </p>
           </div>
 
-          <div className="grid gap-4">
+          <div className="grid gap-3.5">
             <FormField
               control={form.control}
               name="new_password"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Mật khẩu mới</FormLabel>
+                <FormItem className="space-y-1">
+                  <FormLabel className="text-xs font-medium">Mật khẩu mới</FormLabel>
                   <FormControl>
                     <PasswordInput
                       data-testid="new-password-input"
-                      placeholder="New Password"
+                      placeholder="Tối thiểu 8 ký tự"
                       {...field}
+                      className="h-9 text-sm"
                     />
                   </FormControl>
-                  <FormMessage />
+                  <FormMessage className="text-xs" />
                 </FormItem>
               )}
             />
@@ -130,32 +134,33 @@ function ResetPassword() {
               control={form.control}
               name="confirm_password"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Xác nhận mật khẩu</FormLabel>
+                <FormItem className="space-y-1">
+                  <FormLabel className="text-xs font-medium">Xác nhận mật khẩu</FormLabel>
                   <FormControl>
                     <PasswordInput
                       data-testid="confirm-password-input"
-                      placeholder="Confirm Password"
+                      placeholder="Nhập lại mật khẩu mới"
                       {...field}
+                      className="h-9 text-sm"
                     />
                   </FormControl>
-                  <FormMessage />
+                  <FormMessage className="text-xs" />
                 </FormItem>
               )}
             />
 
             <LoadingButton
               type="submit"
-              className="w-full"
+              className="mt-1 h-9 font-medium shadow-2xs"
               loading={mutation.isPending}
             >
-              Đặt lại mật khẩu
+              Cập nhật mật khẩu
             </LoadingButton>
           </div>
 
-          <div className="text-center text-sm">
-            Bạn đã nhớ mật khẩu?{" "}
-            <RouterLink to="/login" className="underline underline-offset-4">
+          <div className="text-center text-xs text-muted-foreground pt-1">
+            Quay lại{" "}
+            <RouterLink to="/login" className="font-medium text-foreground hover:underline">
               Đăng nhập
             </RouterLink>
           </div>

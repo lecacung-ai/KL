@@ -25,7 +25,7 @@ import useCustomToast from "@/hooks/useCustomToast"
 import { handleError } from "@/utils"
 
 const formSchema = z.object({
-  email: z.email({ message: "Invalid email address" }),
+  email: z.email({ message: "Địa chỉ email không hợp lệ" }),
 })
 
 type FormData = z.infer<typeof formSchema>
@@ -66,7 +66,7 @@ function RecoverPassword() {
   const mutation = useMutation({
     mutationFn: recoverPassword,
     onSuccess: () => {
-      showSuccessToast("Password recovery email sent successfully")
+      showSuccessToast("Email khôi phục mật khẩu đã được gửi")
       form.reset()
     },
     onError: handleError.bind(showErrorToast),
@@ -82,45 +82,49 @@ function RecoverPassword() {
       <Form {...form}>
         <form
           onSubmit={form.handleSubmit(onSubmit)}
-          className="flex flex-col gap-6"
+          className="flex flex-col gap-5"
         >
-          <div className="flex flex-col items-center gap-2 text-center">
-            <h1 className="text-2xl font-semibold">Khôi phục mật khẩu</h1>
+          <div className="space-y-1">
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">Khôi phục mật khẩu</h1>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Nhập email liên kết với tài khoản để nhận liên kết đặt lại mật khẩu.
+            </p>
           </div>
 
-          <div className="grid gap-4">
+          <div className="grid gap-3.5">
             <FormField
               control={form.control}
               name="email"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email</FormLabel>
+                <FormItem className="space-y-1.5">
+                  <FormLabel className="text-xs font-medium">Email</FormLabel>
                   <FormControl>
                     <Input
                       data-testid="email-input"
-                      placeholder="user@example.com"
+                      placeholder="ten@doanhnghiep.vn"
                       type="email"
                       {...field}
+                      className="h-9 text-sm"
                     />
                   </FormControl>
-                  <FormMessage />
+                  <FormMessage className="text-xs" />
                 </FormItem>
               )}
             />
 
             <LoadingButton
               type="submit"
-              className="w-full"
+              className="mt-1 h-9 font-medium shadow-2xs"
               loading={mutation.isPending}
             >
-              Tiếp tục
+              Gửi liên kết khôi phục
             </LoadingButton>
           </div>
 
-          <div className="text-center text-sm">
-            Bạn đã nhớ mật khẩu?{" "}
-            <RouterLink to="/login" className="underline underline-offset-4">
-              Đăng nhập
+          <div className="text-center text-xs text-muted-foreground pt-1">
+            Nhớ mật khẩu?{" "}
+            <RouterLink to="/login" className="font-medium text-foreground hover:underline">
+              Quay lại đăng nhập
             </RouterLink>
           </div>
         </form>

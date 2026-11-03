@@ -18,7 +18,7 @@ export const Route = createFileRoute("/_layout/settings")({
   head: () => ({
     meta: [
       {
-        title: "Settings - FastAPI Template",
+        title: "Cài đặt tài khoản - FinAI",
       },
     ],
   }),
@@ -35,19 +35,19 @@ function UserSettings() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeading title="Cài đặt tài khoản" description="Thông tin cá nhân, mật khẩu và các tùy chọn tài khoản của bạn." />
+    <div className="flex flex-col gap-5 w-full min-w-0 max-w-full">
+      <PageHeading title="Cài đặt tài khoản" description="Thông tin cá nhân, mật khẩu và tùy chọn tài khoản." />
 
-      <Tabs defaultValue="my-profile">
-        <TabsList>
+      <Tabs defaultValue="my-profile" className="w-full min-w-0">
+        <TabsList className="h-8.5 bg-muted/60 p-0.5">
           {finalTabs.map((tab) => (
-            <TabsTrigger key={tab.value} value={tab.value}>
+            <TabsTrigger key={tab.value} value={tab.value} className="text-xs h-7.5 px-3">
               {tab.title}
             </TabsTrigger>
           ))}
         </TabsList>
         {finalTabs.map((tab) => (
-          <TabsContent key={tab.value} value={tab.value}>
+          <TabsContent key={tab.value} value={tab.value} className="pt-2 min-w-0">
             <tab.component />
           </TabsContent>
         ))}

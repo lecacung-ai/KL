@@ -68,6 +68,8 @@ class ErrorCode(Enum):
         403,
     )
     BAD_REQUEST = ("HTTP_400", "Bad request", 400)
+    ITEM_NOT_FOUND = ("ITEM_001", "Item not found", 404)
+    RESOURCE_NOT_FOUND = ("SYS_404", "Resource not found", 404)
     UNAUTHORIZED = ("HTTP_401", "Unauthorized", 401)
     NOT_FOUND = ("HTTP_404", "Not found", 404)
     CONFLICT = ("HTTP_409", "Conflict", 409)

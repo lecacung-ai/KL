@@ -1,17 +1,30 @@
 import os
 import pandas as pd
 
+# Chuẩn Corey Schafer (Part 9: Cleaning Data): Danh sách các placeholder chuỗi tùy chỉnh thể hiện giá trị khuyết thiếu
+CUSTOM_NA_VALUES = [
+    "NA", "N/A", "na", "n/a", "NaN", "nan",
+    "Missing", "missing", "MISSING",
+    "null", "Null", "NULL",
+    "-", "--", "---",
+    "none", "None", "NONE",
+    "?", "unknown", "Unknown",
+]
+
 
 class DataFrameService:
     """Shared service for loading tabular files and identifying their columns."""
 
+    CUSTOM_NA_VALUES = CUSTOM_NA_VALUES
+
     def load_dataframe(self, file_path: str) -> pd.DataFrame:
         """
         Bộ đọc dữ liệu thông minh cho Excel (.xlsx, .xls) và CSV (.csv):
+        - Áp dụng chuẩn Corey Schafer: Thay thế các ký hiệu missing tùy chỉnh (NA, missing, -) thành np.nan
         - Tự động nhận diện dòng tiêu đề thật (Header Detection), bỏ qua các banner tiêu đề báo cáo, dòng trống hoặc logo
         - Tự động xử lý và loại bỏ các cột rỗng (Unnamed: x)
-        - Tự động gán tên nghiệp vụ có nghĩa cho các cột bị khuyết tên
         - Hỗ trợ đa bảng mã Tiếng Việt (UTF-8, UTF-8-SIG, Latin1, CP1258)
+        - Loại bỏ cột/dòng hoàn toàn rỗng bằng dropna(axis=..., how='all')
         """
         if not os.path.exists(file_path):
             raise FileNotFoundError(f"Không tìm thấy tệp dữ liệu tại {file_path}")
@@ -21,7 +34,7 @@ class DataFrameService:
         if ext in [".xlsx", ".xls"]:
             # 1. Đọc thử 25 dòng đầu không header để chấm điểm dòng nào là Header thật
             try:
-                raw = pd.read_excel(file_path, header=None, nrows=25)
+                raw = pd.read_excel(file_path, header=None, nrows=25, na_values=CUSTOM_NA_VALUES)
             except Exception as e:
                 raise ValueError(f"Không thể mở tệp Excel: {str(e)}")
 
@@ -43,8 +56,8 @@ class DataFrameService:
                     max_text_cols = text_count
                     best_row = int(idx)
 
-            # 2. Đọc lại DataFrame từ dòng header chuẩn nhất
-            df = pd.read_excel(file_path, header=best_row)
+            # 2. Đọc lại DataFrame từ dòng header chuẩn nhất với na_values
+            df = pd.read_excel(file_path, header=best_row, na_values=CUSTOM_NA_VALUES)
 
         elif ext == ".csv":
             # Hỗ trợ nhiều bảng mã Tiếng Việt
@@ -53,7 +66,7 @@ class DataFrameService:
             last_err = None
             for enc in encodings:
                 try:
-                    df = pd.read_csv(file_path, encoding=enc)
+                    df = pd.read_csv(file_path, encoding=enc, na_values=CUSTOM_NA_VALUES)
                     break
                 except Exception as err:
                     last_err = err
@@ -63,7 +76,7 @@ class DataFrameService:
 
             # Nếu dòng đầu của CSV chỉ có 1 cột có chữ và còn lại là Unnamed
             if sum(1 for c in df.columns if not str(c).startswith("Unnamed:")) <= 1 and len(df) > 0:
-                raw = pd.read_csv(file_path, header=None, nrows=15, encoding="utf-8", errors="ignore")
+                raw = pd.read_csv(file_path, header=None, nrows=15, encoding="utf-8", errors="ignore", na_values=CUSTOM_NA_VALUES)
                 best_row = 0
                 max_text_cols = 0
                 for idx, row in raw.iterrows():
@@ -79,30 +92,22 @@ class DataFrameService:
                         max_text_cols = text_count
                         best_row = int(idx)
                 if best_row > 0:
-                    df = pd.read_csv(file_path, header=best_row, encoding="utf-8", errors="ignore")
+                    df = pd.read_csv(file_path, header=best_row, encoding="utf-8", errors="ignore", na_values=CUSTOM_NA_VALUES)
         else:
             raise ValueError(f"Định dạng tệp '{ext}' không được hỗ trợ. Chỉ hỗ trợ .xlsx, .xls, .csv")
 
-        # 3. Loại bỏ các cột hoàn toàn trống (All NaN)
-        df = df.dropna(axis=1, how="all")
+        # 3. Chuẩn Corey Schafer (11:01): Thay thế các placeholder chuỗi tùy chỉnh thành NA
+        df = df.replace(CUSTOM_NA_VALUES, pd.NA)
 
-        # 4. Chuẩn hóa tên cột thông minh (Bỏ Unnamed, chuẩn hóa Tiếng Việt)
+        # 4. Chuẩn Corey Schafer (2:28, 3:55): Loại bỏ các cột hoàn toàn trống (how='all', axis='columns')
+        df = df.dropna(axis="columns", how="all")
+
+        # 5. Chuẩn hóa tên cột
         cleaned_cols = []
         for idx, col in enumerate(df.columns):
             col_str = str(col).strip().replace("\n", " ").replace("\r", "")
-            # Nếu cột bị Unnamed hoặc rỗng, suy luận từ dữ liệu bên dưới
-            if "Unnamed:" in col_str or col_str.lower() in ["nan", "", "none"]:
-                sample_vals = df[col].dropna().head(6).astype(str).tolist()
-                sample_str = " ".join(sample_vals).lower()
-
-                if any(d in sample_str for d in ["thứ", "cn", "ngày", "t2", "t3", "t4", "t5", "t6", "t7", "tháng", "tuần"]):
-                    col_str = "Thời_Gian" if idx > 0 else "Ngày_Giao_Dịch"
-                elif any(c in sample_str for c in ["kh", "sp", "nv", "mã", "id", "code"]):
-                    col_str = f"Mã_Định_Danh_{idx + 1}"
-                elif any(k in sample_str for k in ["hà nội", "hcm", "đà nẵng", "khu vực", "miền"]):
-                    col_str = "Khu_Vực"
-                else:
-                    col_str = f"Chỉ_Tiêu_{idx + 1}"
+            if "Unnamed:" in col_str or col_str.lower() in ["nan", "", "none", "<na>"]:
+                col_str = f"Cot_{idx + 1}"
 
             # Đảm bảo không trùng tên cột
             base_name = col_str
@@ -115,15 +120,13 @@ class DataFrameService:
 
         df.columns = cleaned_cols
 
-        # 5. Loại bỏ các dòng hoàn toàn rỗng
-        df = df.dropna(how="all")
+        # 6. Chuẩn Corey Schafer (2:28, 3:55): Loại bỏ các dòng hoàn toàn rỗng (how='all', axis='index')
+        df = df.dropna(axis="index", how="all")
 
-        # 6. Reset index
+        # 7. Reset index
         df = df.reset_index(drop=True)
 
         return df
-
-
 
 
 dataframe_service = DataFrameService()

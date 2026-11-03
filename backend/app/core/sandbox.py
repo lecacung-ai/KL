@@ -144,8 +144,16 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-FILE_PATH = "{file_path}"
-LOCAL_FILE = "{filename}"
+FILE_PATH = {file_path!r}
+LOCAL_FILE = {filename!r}
+
+# Đảm bảo lệnh plt.show() không làm mất hình và tự động lưu output.png
+def _custom_show(*args, **kwargs):
+    if not os.path.exists("output.png"):
+        plt.savefig("output.png", bbox_inches='tight', dpi=150)
+    plt.close('all')
+
+plt.show = _custom_show
 
 # --- MÃ NGUỒN PHÂN TÍCH DO AI SINH RA ---
 {cleaned}
@@ -180,12 +188,17 @@ except Exception:
         success = (proc.returncode == 0)
 
         # Quét tìm ảnh biểu đồ được sinh ra trong sandbox
-        image_files = glob.glob(os.path.join(sandbox_dir, "*.png")) + glob.glob(os.path.join(sandbox_dir, "*.jpg"))
+        image_files = (
+            glob.glob(os.path.join(sandbox_dir, "*.png"))
+            + glob.glob(os.path.join(sandbox_dir, "*.jpg"))
+            + glob.glob(os.path.join(sandbox_dir, "*.jpeg"))
+        )
         if image_files:
             target_img = next((img for img in image_files if "output.png" in img), image_files[0])
             with open(target_img, "rb") as img_f:
                 b64_content = base64.b64encode(img_f.read()).decode("utf-8")
                 chart_base64 = f"data:image/png;base64,{b64_content}"
+            success = True
 
     except subprocess.TimeoutExpired:
         stderr_text = f"Thời gian thực thi mã vượt quá giới hạn an toàn ({timeout} giây). Sandbox đã chủ động ngắt tiến trình để bảo vệ tài nguyên máy chủ."

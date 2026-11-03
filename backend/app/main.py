@@ -3,6 +3,7 @@ from pathlib import Path
 import sentry_sdk
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
+from fastapi.responses import RedirectResponse
 from fastapi.routing import APIRoute
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.cors import CORSMiddleware
@@ -16,6 +17,7 @@ from app.exceptions.global_exception_handler import (
     unhandled_exception_handler,
     validation_exception_handler,
 )
+
 FRONTEND_DIR = Path(__file__).parent / "frontend"
 
 
@@ -51,4 +53,14 @@ app.add_middleware(
 )
 
 app.include_router(api_router, prefix=settings.API_V1_STR)
-app.frontend("/", directory=FRONTEND_DIR)
+
+if hasattr(app, "frontend"):
+    app.frontend("/", directory=FRONTEND_DIR)
+elif FRONTEND_DIR.exists() and (FRONTEND_DIR / "index.html").exists():
+    from fastapi.staticfiles import StaticFiles
+
+    app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
+else:
+    @app.get("/", include_in_schema=False)
+    def root() -> RedirectResponse:
+        return RedirectResponse(url="/docs")

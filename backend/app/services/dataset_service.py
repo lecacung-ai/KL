@@ -354,20 +354,34 @@ class DatasetService:
             except Exception:
                 col_type_map = {}
 
-            # 2. Đọc DataFrame gốc
-            if dataset.file_type == "csv":
-                try:
-                    df = pd.read_csv(dataset.file_path)
-                except UnicodeDecodeError:
-                    df = pd.read_csv(dataset.file_path, encoding="latin1")
-            else:
-                df = pd.read_excel(dataset.file_path)
+            # 2. Đọc DataFrame theo chuẩn Corey Schafer qua dataframe_service (hỗ trợ na_values tùy chỉnh)
+            df = dataframe_service.load_dataframe(dataset.file_path)
 
-            # Loại bỏ hoàn toàn các dòng trùng lặp và dòng rỗng
+            # 3. Chuẩn Corey Schafer (Part 9: Handling Missing Values)
+            # a) Loại bỏ trùng lặp
             df = df.drop_duplicates()
-            df = df.dropna(how="all")
 
-            # 3. Làm sạch dữ liệu theo kiểu ngữ nghĩa đã nhận diện (Semantic-aware Cleaning)
+            # b) Loại bỏ dòng và cột hoàn toàn rỗng (2:28, 3:55)
+            df = df.dropna(axis="columns", how="all")
+            df = df.dropna(axis="index", how="all")
+
+            # c) Subsetting (7:15): Drop các hàng thiếu thông tin định danh khóa quan trọng
+            critical_cols = [
+                c for c in df.columns
+                if any(kw in str(c).casefold() for kw in ["id", "mã", "code", "stt", "key", "ma_"])
+            ]
+            if critical_cols:
+                df = df.dropna(axis="index", subset=critical_cols, how="any")
+
+            # 4. Chuẩn Corey Schafer: Chuyển đổi kiểu dữ liệu & Điền khuyết (Casting Datatypes & fillna)
+            # Bản đồ chuyển đổi chuỗi khảo sát/thực tế sang giá trị số (24:22, 26:06)
+            survey_numeric_replacements = {
+                r"(?i)\bless than 1 year\b": "0.5",
+                r"(?i)\bmore than 50 years\b": "50",
+                r"(?i)\bdưới 1 năm\b": "0.5",
+                r"(?i)\btrên 50 năm\b": "50",
+            }
+
             for column in df.columns:
                 col_name_str = str(column)
                 sem_type = col_type_map.get(col_name_str) or col_type_map.get(column)
@@ -384,21 +398,23 @@ class DatasetService:
 
                 if is_num:
                     if df[column].dtype == object:
-                        # Làm sạch ký tự tiền tệ, phần trăm, dấu phẩy ngăn cách
+                        # Corey Schafer (26:06): Thay thế chuỗi phi số đặc thù trước khi ép kiểu
                         cleaned_series = (
                             df[column]
                             .astype(str)
+                            .replace(survey_numeric_replacements, regex=True)
                             .str.replace(r"[^\d.-]", "", regex=True)
                         )
-                        df[column] = pd.to_numeric(cleaned_series, errors="coerce")
+                        # Corey Schafer (17:01): Ép kiểu float vì cột có NaN phải là float
+                        df[column] = pd.to_numeric(cleaned_series, errors="coerce").astype(float)
                     else:
-                        df[column] = pd.to_numeric(df[column], errors="coerce")
+                        df[column] = pd.to_numeric(df[column], errors="coerce").astype(float)
 
-                    median_val = df[column].median()
-                    fill_val = median_val if pd.notna(median_val) else 0
-                    if sem_type == SemanticType.INTEGER and pd.notna(fill_val):
-                        fill_val = round(fill_val)
-                    df[column] = df[column].fillna(fill_val)
+                    # Corey Schafer (13:41): Điền giá trị hằng số cố định (0.0 cho dữ liệu số tính toán) thay vì tự chế median
+                    df[column] = df[column].fillna(0.0)
+
+                    if sem_type == SemanticType.INTEGER:
+                        df[column] = df[column].round()
 
                 elif sem_type in {SemanticType.DATE, SemanticType.DATETIME}:
                     parsed_dates = pd.to_datetime(df[column], errors="coerce")
@@ -416,19 +432,20 @@ class DatasetService:
 
                 else:
                     if df[column].dtype == object:
+                        df[column] = df[column].replace(dataframe_service.CUSTOM_NA_VALUES, pd.NA)
                         df[column] = df[column].map(
                             lambda x: str(x).strip() if pd.notna(x) and str(x).strip() != "" else "Chưa xác định"
                         )
                     else:
                         df[column] = df[column].fillna("Chưa xác định")
 
-            # 4. Ghi lại dữ liệu đã làm sạch vào tệp
+            # 5. Ghi lại dữ liệu đã làm sạch vào tệp
             if dataset.file_type == "csv":
                 df.to_csv(dataset.file_path, index=False)
             else:
                 df.to_excel(dataset.file_path, index=False)
 
-            # 5. Phân tích lược đồ sau khi làm sạch để cập nhật profile toàn diện
+            # 6. Phân tích lược đồ sau khi làm sạch để cập nhật profile toàn diện
             post_analysis = None
             post_report = None
             try:

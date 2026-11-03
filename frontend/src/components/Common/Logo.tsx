@@ -16,23 +16,23 @@ export function Logo({
 }: LogoProps) {
   const content = (
     <div data-logo className={cn("flex items-center gap-2.5 select-none", className)}>
-      <div className="flex size-10 shrink-0 items-center justify-center rounded-[14px] bg-primary text-primary-foreground">
-        <TrendingUp className="size-5 stroke-[2.5]" />
+      <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-2xs">
+        <TrendingUp className="size-4.5 stroke-[2.5]" />
       </div>
       <div
         className={cn(
-          "flex flex-col leading-none",
+          "flex flex-col leading-tight min-w-0",
           variant === "responsive" && "group-data-[collapsible=icon]:hidden",
           variant === "icon" && "hidden",
         )}
       >
         <div className="flex items-center gap-1.5">
-          <span className="text-xl font-semibold tracking-tight text-foreground">
+          <span className="text-base font-bold tracking-tight text-foreground">
             FinAI
           </span>
         </div>
-        <span className="mt-1 max-w-[160px] truncate text-xs text-muted-foreground">
-          Dữ liệu & góc nhìn
+        <span className="truncate text-[10px] font-medium text-muted-foreground/80">
+          AI Data Workspace
         </span>
       </div>
     </div>

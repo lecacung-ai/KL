@@ -25,9 +25,9 @@ function Layout() {
     <SidebarProvider>
       <a href="#main-content" className="finai-skip-link">Đi đến nội dung chính</a>
       <AppSidebar />
-      <SidebarInset className="finai-workspace min-w-0">
+      <SidebarInset className="finai-workspace min-w-0 flex flex-col min-h-dvh">
         <WorkspaceHeader />
-        <main id="main-content" className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-9 lg:py-8">
+        <main id="main-content" className="min-w-0 flex-1 px-3 py-3 sm:px-5 sm:py-4 lg:px-8">
           <div className="mx-auto w-full min-w-0 max-w-7xl">
             <Outlet />
           </div>

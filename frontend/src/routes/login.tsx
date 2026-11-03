@@ -23,11 +23,11 @@ import { PasswordInput } from "@/components/ui/password-input"
 import useAuth, { isLoggedIn } from "@/hooks/useAuth"
 
 const formSchema = z.object({
-  username: z.email({ message: "Invalid email address" }),
+  username: z.email({ message: "Địa chỉ email không hợp lệ" }),
   password: z
     .string()
-    .min(1, { message: "Password is required" })
-    .min(8, { message: "Password must be at least 8 characters" }),
+    .min(1, { message: "Mật khẩu không được để trống" })
+    .min(8, { message: "Mật khẩu tối thiểu 8 ký tự" }),
 }) satisfies z.ZodType<AccessToken>
 
 type FormData = z.infer<typeof formSchema>
@@ -72,27 +72,29 @@ function Login() {
       <Form {...form}>
         <form
           onSubmit={form.handleSubmit(onSubmit)}
-          className="flex flex-col gap-7"
+          className="flex flex-col gap-5"
         >
-          <div className="space-y-3">
-            <p className="finai-eyebrow mb-0">Đăng nhập không gian làm việc</p>
-            <h1 className="text-3xl font-semibold sm:text-4xl">Chào mừng bạn trở lại.</h1>
-            <p className="max-w-sm text-sm leading-6 text-muted-foreground">Tiếp tục với dữ liệu, báo cáo và những phân tích bạn đang thực hiện.</p>
+          <div className="space-y-1">
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">Đăng nhập FinAI</h1>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Truy cập không gian làm việc và phân tích dữ liệu tài chính.
+            </p>
           </div>
 
-          <div className="grid gap-4">
+          <div className="grid gap-3.5">
             <FormField
               control={form.control}
               name="username"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email</FormLabel>
+                <FormItem className="space-y-1.5">
+                  <FormLabel className="text-xs font-medium">Email</FormLabel>
                   <FormControl>
                     <Input
                       data-testid="email-input"
-                      placeholder="user@example.com"
+                      placeholder="ten@doanhnghiep.vn"
                       type="email"
                       {...field}
+                      className="h-9 text-sm"
                     />
                   </FormControl>
                   <FormMessage className="text-xs" />
@@ -104,12 +106,12 @@ function Login() {
               control={form.control}
               name="password"
               render={({ field }) => (
-                <FormItem>
-                  <div className="flex items-center">
-                    <FormLabel>Mật khẩu</FormLabel>
+                <FormItem className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <FormLabel className="text-xs font-medium">Mật khẩu</FormLabel>
                     <RouterLink
                       to="/recover-password"
-                      className="ml-auto text-sm underline-offset-4 hover:underline"
+                      className="text-xs text-muted-foreground hover:text-foreground hover:underline"
                     >
                       Quên mật khẩu?
                     </RouterLink>
@@ -117,8 +119,9 @@ function Login() {
                   <FormControl>
                     <PasswordInput
                       data-testid="password-input"
-                      placeholder="Nhập mật khẩu"
+                      placeholder="••••••••"
                       {...field}
+                      className="h-9 text-sm"
                     />
                   </FormControl>
                   <FormMessage className="text-xs" />
@@ -126,15 +129,19 @@ function Login() {
               )}
             />
 
-            <LoadingButton type="submit" loading={loginMutation.isPending}>
+            <LoadingButton
+              type="submit"
+              loading={loginMutation.isPending}
+              className="mt-1 h-9 font-medium shadow-2xs"
+            >
               Đăng nhập
             </LoadingButton>
           </div>
 
-          <div className="finai-auth-signup text-center text-sm">
+          <div className="text-center text-xs text-muted-foreground pt-1">
             Chưa có tài khoản?{" "}
-            <RouterLink to="/signup" className="underline underline-offset-4">
-              Đăng ký
+            <RouterLink to="/signup" className="font-medium text-foreground hover:underline">
+              Đăng ký tài khoản
             </RouterLink>
           </div>
         </form>

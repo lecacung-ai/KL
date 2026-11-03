@@ -32,6 +32,9 @@ services:
       - "8080:8080"
 
   backend:
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     ports:
       - "8000:8000"
     build:
@@ -70,6 +73,7 @@ services:
       - ./backend/app/mappers:/app/backend/app/mappers
       - ./backend/app/repositories:/app/backend/app/repositories
       - ./backend/app/services:/app/backend/app/services
+      - ./backend/app/frontend:/app/backend/app/frontend
       - ./backend/app/main.py:/app/backend/app/main.py
       - ./backend/app/initial_data.py:/app/backend/app/initial_data.py
       - ./backend/uploads:/app/uploads

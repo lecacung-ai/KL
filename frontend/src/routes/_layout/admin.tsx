@@ -31,7 +31,7 @@ export const Route = createFileRoute("/_layout/admin")({
   head: () => ({
     meta: [
       {
-        title: "Admin - FastAPI Template",
+        title: "Quản lý người dùng - FinAI",
       },
     ],
   }),
@@ -59,7 +59,7 @@ function UsersTable() {
 
 function Admin() {
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5 w-full min-w-0 max-w-full">
       <PageHeading title="Quản lý người dùng" description="Tài khoản và quyền truy cập trong không gian làm việc." action={<AddUser />} />
       <UsersTable />
     </div>
