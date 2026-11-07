@@ -27,6 +27,14 @@ class Settings(BaseSettings):
     FASTAPI_ENV: Literal["development"] | None = None
     GEMINI_API_KEY: str | None = None
 
+    # Cau hinh Sandbox Engine (Moi truong thuc thi ma an toan Code Interpreter)
+    SANDBOX_MODE: Literal["auto", "docker", "subprocess"] = "auto"
+    SANDBOX_DOCKER_IMAGE: str = "sme-ai-sandbox:latest"
+    SANDBOX_FALLBACK_IMAGE: str = "python:3.11-slim"
+    SANDBOX_TIMEOUT_SECONDS: int = 15
+    SANDBOX_MEMORY_LIMIT: str = "512m"
+    SANDBOX_CPU_LIMIT: float = 1.0
+
     PROJECT_NAME: str
     SENTRY_DSN: HttpUrl | None = None
     DATABASE_URL: PostgresDsn

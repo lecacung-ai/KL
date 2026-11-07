@@ -38,6 +38,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { MarkdownRenderer } from "@/components/Common/MarkdownRenderer"
 import { DatasetsService, Dataset } from "@/services/datasetsService"
 import {
   ForecastService,
@@ -1231,7 +1232,7 @@ function ForecastPage() {
                           <Bot className="size-2.5 text-primary" />
                           <span>FinAI Assistant</span>
                         </div>
-                        <div className="whitespace-pre-wrap">{m.text}</div>
+                        <MarkdownRenderer content={m.text} />
                       </div>
                     </div>
                   )}

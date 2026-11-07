@@ -32,9 +32,6 @@ services:
       - "8080:8080"
 
   backend:
-    dns:
-      - 8.8.8.8
-      - 1.1.1.1
     ports:
       - "8000:8000"
     build:
@@ -116,3 +113,4 @@ services:
       - ./frontend/test-results:/app/frontend/test-results
     ports:
       - 9323:9323
+

@@ -573,7 +573,7 @@ class AiAnalysisService:
                         status=status,
                         error_message=execution.get("stderr"),
                         execution_time_ms=execution.get("execution_time_ms", 0),
-                        memory_mb=24.5,
+                        memory_mb=float(execution.get("memory_mb", 12.0)),
                         chart_image=execution.get("chart_image"),
                         scope_columns=", ".join(selected_cols) if selected_cols else "Toàn bộ dữ liệu",
                         user_id=user.id,
@@ -594,6 +594,7 @@ class AiAnalysisService:
             "ai_code": ai_code,
             "chart_image": execution.get("chart_image"),
             "stdout": execution.get("stdout"),
+            "summary": execution.get("stdout"),
             "agent_steps": agent_steps,
             "export_file": export_file,
             "execution_status": (

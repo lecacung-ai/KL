@@ -1,4 +1,4 @@
-import { Database, History, Home, TrendingUp, Users } from "lucide-react"
+import { Database, History, Home, Users } from "lucide-react"
 
 import { SidebarAppearance } from "@/components/Common/Appearance"
 import { Logo } from "@/components/Common/Logo"
@@ -15,7 +15,6 @@ import { User } from "./User"
 const baseItems: Item[] = [
   { icon: Home, title: "Tổng quan", path: "/" },
   { icon: Database, title: "Kho dữ liệu", path: "/datasets" },
-  { icon: TrendingUp, title: "Dự báo & phân nhóm", path: "/forecast" },
   { icon: History, title: "Lịch sử phân tích", path: "/history" },
 ]
 

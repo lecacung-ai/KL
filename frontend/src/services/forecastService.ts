@@ -110,6 +110,7 @@ export interface RecommendationResponseData {
   total_columns: number
   recommendations: AlgorithmRecommendation[]
   available_fields: {
+    all_columns?: string[]
     numeric_columns: string[]
     date_columns: string[]
     binary_columns: string[]

@@ -1,0 +1,37 @@
+# Dockerfile cho Sandbox môi trường thực thi mã an toàn (Code Interpreter)
+# Đề tài: Trợ lý AI Phân tích Dữ liệu Kinh doanh & Dự báo Tài chính SME
+FROM python:3.11-slim
+
+# Thiết lập các biến môi trường chuẩn cho môi trường headless và tối ưu Python
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    MPLBACKEND=Agg
+
+# Cài đặt phông chữ hỗ trợ tiếng Việt trên biểu đồ Matplotlib và các tiện ích hệ thống tối thiểu
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    fonts-dejavu-core \
+    fonts-liberation \
+    && rm -rf /var/lib/apt/lists/*
+
+# Cài đặt các thư viện phân tích dữ liệu, vẽ biểu đồ và học máy cho SME
+RUN pip install --no-cache-dir \
+    pandas \
+    openpyxl \
+    matplotlib \
+    seaborn \
+    numpy \
+    scikit-learn \
+    scipy \
+    statsmodels
+
+# Tạo người dùng không đặc quyền (non-root) để ngăn chặn leo thang đặc quyền
+RUN groupadd -r sandboxgroup && useradd -r -g sandboxgroup -u 1001 -m -d /home/sandboxuser sandboxuser
+
+# Tạo không gian làm việc an toàn và phân quyền
+RUN mkdir -p /workspace && chown -R sandboxuser:sandboxgroup /workspace
+
+USER sandboxuser
+WORKDIR /workspace
+
+# Lệnh mặc định thực thi script được mount từ host
+CMD ["python", "run_script.py"]

@@ -19,13 +19,24 @@ import {
   ChevronUp,
   RefreshCw,
   Sparkles,
+  TrendingUp,
+  ArrowRight,
+  SlidersHorizontal,
+  Play,
+  X,
 } from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { LoadingButton } from "@/components/ui/loading-button"
 import { ResultFigure } from "@/components/Common/ResultFigure"
+import { MarkdownRenderer } from "@/components/Common/MarkdownRenderer"
 import { DatasetsService, Dataset } from "@/services/datasetsService"
+import {
+  ForecastService,
+  RecommendationResponseData,
+  AlgorithmRecommendation,
+} from "@/services/forecastService"
 
 interface AgentStep {
   step: number
@@ -60,6 +71,7 @@ interface ChatMessage {
   file_name?: string
   selected_scope?: string[]
   timestamp: string
+  recommendation_data?: RecommendationResponseData | null
 }
 
 const PROMPT_CHIPS = [
@@ -92,6 +104,44 @@ export default function DataAnalyzer({
   const chatBottomRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  // Interactive algorithm config state inside chat
+  const [activeConfigAlgoId, setActiveConfigAlgoId] = useState<string | null>(null)
+  const [selectedTarget, setSelectedTarget] = useState<string>("")
+  const [selectedDateCol, setSelectedDateCol] = useState<string>("")
+  const [selectedHorizon, setSelectedHorizon] = useState<number>(3)
+  const [selectedK, setSelectedK] = useState<number>(3)
+  const [selectedTestSize, setSelectedTestSize] = useState<number>(20)
+
+  useEffect(() => {
+    if (!selectedDatasetId) return
+
+    const currentDataset = datasets.find((d) => d.id === selectedDatasetId)
+    if (!currentDataset) return
+
+    ForecastService.getRecommendations(selectedDatasetId)
+      .then((res) => {
+        if (res && res.data) {
+          const recData = res.data
+          const introMsg: ChatMessage = {
+            id: `bot_rec_${selectedDatasetId}`,
+            role: "assistant",
+            file_name: currentDataset.filename,
+            text: `Xin chào! Tôi đã nạp tệp **${currentDataset.filename}** (${recData.total_rows.toLocaleString()} dòng, ${recData.total_columns} cột).\n\n🎯 **Phân loại dữ liệu:** ${recData.type_label}\n📝 ${recData.type_description}\n\nDưới đây là các thuật toán phù hợp nhất với tệp dữ liệu này. Bạn có thể chọn trường và tùy chỉnh chỉ số phân tích trực tiếp ngay trong đoạn chat:`,
+            recommendation_data: recData,
+            timestamp: new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }),
+          }
+
+          setMessages((prev) => {
+            const filtered = prev.filter((m) => !m.id.startsWith("bot_rec_"))
+            return [introMsg, ...filtered]
+          })
+        }
+      })
+      .catch((err) => {
+        console.warn("Không thể tải gợi ý thuật toán cho tệp:", err)
+      })
+  }, [selectedDatasetId, datasets])
 
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -156,6 +206,71 @@ export default function DataAnalyzer({
         fileInputRef.current.value = ""
       }
     }
+  }
+
+  const handleOpenConfig = (rec: AlgorithmRecommendation, availableFields?: any) => {
+    setActiveConfigAlgoId(rec.algorithm_id)
+    const numCols = availableFields?.numeric_columns || []
+    const binCols = availableFields?.binary_columns || []
+    const dateCols = availableFields?.date_columns || []
+    const allCols = availableFields?.all_columns || numCols
+
+    if (rec.task_type === "classification") {
+      setSelectedTarget(rec.suggested_target || binCols[0] || (numCols.length > 0 ? numCols[0] : ""))
+    } else {
+      setSelectedTarget(rec.suggested_target || (numCols.length > 0 ? numCols[0] : (allCols.length > 0 ? allCols[0] : "")))
+    }
+
+    setSelectedDateCol(rec.suggested_date || (dateCols.length > 0 ? dateCols[0] : ""))
+    setSelectedHorizon(rec.suggested_horizon || 3)
+    setSelectedK(3)
+    setSelectedTestSize(20)
+  }
+
+  const handleExecuteConfiguredAlgorithm = (rec: AlgorithmRecommendation) => {
+    let generatedPrompt = ""
+    if (rec.task_type === "time_series_forecast") {
+      const target = selectedTarget || rec.suggested_target || "doanh thu"
+      const datePart = selectedDateCol ? ` (theo trục thời gian '${selectedDateCol}')` : ""
+      generatedPrompt = `Hãy sử dụng mô hình ${rec.algorithm_name} để dự báo chuỗi thời gian cho biến mục tiêu '${target}'${datePart} trong ${selectedHorizon} kỳ tới. Hãy tính toán các chỉ số thống kê (R², MAE, RMSE), tốc độ tăng trưởng kỳ vọng (%) và vẽ biểu đồ dự phóng xu hướng.`
+    } else if (rec.task_type === "clustering") {
+      generatedPrompt = `Hãy áp dụng thuật toán ${rec.algorithm_name} để phân cụm dữ liệu thành ${selectedK} nhóm dựa trên các chỉ số tài chính định lượng, chuẩn hóa dữ liệu (StandardScaler), tính Silhouette Score, vẽ biểu đồ phân khúc 2D (PCA) và giải thích ý nghĩa kinh doanh của từng cụm.`
+    } else if (rec.task_type === "classification") {
+      const target = selectedTarget || rec.suggested_target || "biến mục tiêu"
+      generatedPrompt = `Hãy chạy mô hình ${rec.algorithm_name} để dự đoán biến phân loại '${target}' với tỷ lệ kiểm định ${selectedTestSize}%. Hãy tính ma trận nhầm lẫn (Confusion Matrix), tỷ số Odds Ratios (e^β) và phân tích các yếu tố rủi ro tác động mạnh nhất.`
+    } else {
+      const target = selectedTarget || "chỉ tiêu chính"
+      generatedPrompt = `Hãy áp dụng mô hình ${rec.algorithm_name} phân tích chuyên sâu cho chỉ tiêu '${target}' trong ${selectedHorizon} kỳ tới, giải thích kết quả và vẽ biểu đồ phân tích.`
+    }
+
+    setActiveConfigAlgoId(null)
+    setQuery(generatedPrompt)
+    handleSendMessage(generatedPrompt)
+  }
+
+  const handleRunAlgorithm = (rec: AlgorithmRecommendation) => {
+    let generatedPrompt = ""
+    if (rec.task_type === "time_series_forecast") {
+      const target = rec.suggested_target || "doanh thu"
+      const dateCol = rec.suggested_date ? ` theo mốc thời gian '${rec.suggested_date}'` : ""
+      const horizon = rec.suggested_horizon || 3
+      generatedPrompt = `Hãy sử dụng mô hình ${rec.algorithm_name} để dự báo chuỗi thời gian cho cột '${target}'${dateCol} trong ${horizon} kỳ tiếp theo, tính toán độ tin cậy và vẽ biểu đồ dự phóng xu hướng.`
+    } else if (rec.task_type === "clustering") {
+      const feats =
+        rec.suggested_features && rec.suggested_features.length > 0
+          ? `các đặc trưng [${rec.suggested_features.slice(0, 4).join(", ")}]`
+          : "các chỉ số định lượng"
+      const k = rec.suggested_horizon || 3
+      generatedPrompt = `Hãy áp dụng thuật toán K-Means phân cụm tệp dữ liệu này thành ${k} nhóm dựa trên ${feats}, trực quan hóa phân khúc bằng biểu đồ 2D (PCA) và giải thích ý nghĩa kinh doanh của từng nhóm.`
+    } else if (rec.task_type === "classification") {
+      const target = rec.suggested_target || "biến mục tiêu"
+      generatedPrompt = `Hãy chạy mô hình phân loại Logistic Regression để dự đoán biến '${target}', tính toán tỷ số Odds Ratios (e^β) và phân tích các yếu tố rủi ro tác động mạnh nhất.`
+    } else {
+      generatedPrompt = `Hãy áp dụng thuật toán ${rec.algorithm_name} phân tích chuyên sâu cho tệp dữ liệu này, giải thích kết quả và vẽ biểu đồ trực quan hóa.`
+    }
+
+    setQuery(generatedPrompt)
+    handleSendMessage(generatedPrompt)
   }
 
   const copyCode = (code: string, id: string) => {
@@ -226,7 +341,7 @@ export default function DataAnalyzer({
       const botMsg: ChatMessage = {
         id: `bot_${Date.now()}`,
         role: "assistant",
-        text: resData.summary,
+        text: resData.summary || resData.stdout || resData.message,
         stdout: resData.stdout,
         ai_code: resData.ai_code,
         chart_image: resData.chart_image,
@@ -425,16 +540,255 @@ export default function DataAnalyzer({
                         <span className="font-mono text-[10px] text-muted-foreground">{msg.timestamp}</span>
                       </div>
 
-                      {/* Main Insight */}
-                      {msg.stdout && (
-                        <div className="text-xs sm:text-sm text-foreground leading-relaxed whitespace-pre-wrap break-words overflow-x-auto">
-                          {msg.stdout}
+                      {/* Main Insight / text formatted via MarkdownRenderer */}
+                      {msg.text ? (
+                        <MarkdownRenderer content={msg.text} />
+                      ) : msg.stdout ? (
+                        <MarkdownRenderer content={msg.stdout} />
+                      ) : null}
+
+                      {/* Stdout if different from text and both exist */}
+                      {msg.stdout && msg.text && msg.stdout !== msg.text && (
+                        <div className="pt-2 border-t border-border/50">
+                          <MarkdownRenderer content={msg.stdout} />
+                        </div>
+                      )}
+
+                      {/* Interactive Algorithm Recommendations directly inside Chat Bubble */}
+                      {msg.recommendation_data && msg.recommendation_data.recommendations && (
+                        <div className="mt-3 space-y-2 pt-2 border-t border-border/60">
+                          <div className="flex items-center gap-1.5 text-xs font-semibold text-primary">
+                            <Sparkles className="size-3.5" />
+                            <span>Gợi ý thuật toán phân tích:</span>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                            {msg.recommendation_data.recommendations.map((rec) => {
+                              const isConfiguring = activeConfigAlgoId === rec.algorithm_id
+                              const availFields = msg.recommendation_data?.available_fields
+                              const numCols = availFields?.numeric_columns || []
+                              const binCols = availFields?.binary_columns || []
+                              const dateCols = availFields?.date_columns || []
+                              const allCols = availFields?.all_columns || numCols
+
+                              return (
+                                <div
+                                  key={rec.algorithm_id}
+                                  className={`rounded-lg border bg-muted/20 p-3 space-y-2.5 flex flex-col justify-between shadow-2xs transition-all ${
+                                    isConfiguring
+                                      ? "col-span-1 sm:col-span-2 border-primary/60 bg-card ring-1 ring-primary/30"
+                                      : "border-border/80 hover:border-primary/50"
+                                  }`}
+                                >
+                                  {/* Algorithm Header: Pure English Name + Suitability Badge */}
+                                  <div className="space-y-1.5">
+                                    <div className="flex items-center justify-between gap-1">
+                                      <span className="text-xs font-semibold text-foreground tracking-tight" title={rec.algorithm_name}>
+                                        {rec.algorithm_name}
+                                      </span>
+                                      <span
+                                        className="text-[9px] font-semibold px-1.5 py-0.5 rounded shrink-0 whitespace-nowrap"
+                                        style={{
+                                          backgroundColor: `${rec.badge_color || "#0ea5e9"}18`,
+                                          color: rec.badge_color || "#0ea5e9",
+                                        }}
+                                      >
+                                        {rec.suitability}
+                                      </span>
+                                    </div>
+
+                                    {/* Outcome-oriented summary */}
+                                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                                      {rec.reason}
+                                    </p>
+                                  </div>
+
+                                  {/* Inline Configuration Form inside Chat Bubble */}
+                                  {isConfiguring ? (
+                                    <div className="rounded-md border border-border/70 bg-muted/30 p-2.5 space-y-2 text-xs">
+                                      <div className="text-[11px] font-medium text-foreground flex items-center gap-1 border-b border-border/50 pb-1.5">
+                                        <SlidersHorizontal className="size-3 text-primary" />
+                                        <span>Thiết lập trường & tham số phân tích</span>
+                                      </div>
+
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                        {/* Target Column Selector */}
+                                        {rec.task_type !== "clustering" && (
+                                          <div className="space-y-1">
+                                            <label className="text-[10px] font-medium text-foreground/90 block">
+                                              Biến mục tiêu (Target Y):
+                                            </label>
+                                            <select
+                                              value={selectedTarget}
+                                              onChange={(e) => setSelectedTarget(e.target.value)}
+                                              className="w-full h-7 px-2 text-xs rounded border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                                            >
+                                              {(rec.task_type === "classification" && binCols.length > 0
+                                                ? binCols
+                                                : numCols.length > 0
+                                                ? numCols
+                                                : allCols
+                                              ).map((col) => (
+                                                <option key={col} value={col}>
+                                                  {col}
+                                                </option>
+                                              ))}
+                                            </select>
+                                          </div>
+                                        )}
+
+                                        {/* Date Column Selector */}
+                                        {rec.task_type === "time_series_forecast" && (
+                                          <div className="space-y-1">
+                                            <label className="text-[10px] font-medium text-foreground/90 block">
+                                              Cột mốc thời gian:
+                                            </label>
+                                            <select
+                                              value={selectedDateCol}
+                                              onChange={(e) => setSelectedDateCol(e.target.value)}
+                                              className="w-full h-7 px-2 text-xs rounded border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                                            >
+                                              <option value="">Tự động nhận diện</option>
+                                              {dateCols.map((col) => (
+                                                <option key={col} value={col}>
+                                                  {col}
+                                                </option>
+                                              ))}
+                                            </select>
+                                          </div>
+                                        )}
+
+                                        {/* Forecast Horizon Input */}
+                                        {rec.task_type === "time_series_forecast" && (
+                                          <div className="space-y-1">
+                                            <label className="text-[10px] font-medium text-foreground/90 block">
+                                              Số kỳ dự báo (Horizon):
+                                            </label>
+                                            <input
+                                              type="number"
+                                              min={1}
+                                              max={60}
+                                              value={selectedHorizon}
+                                              onChange={(e) =>
+                                                setSelectedHorizon(Math.max(1, parseInt(e.target.value) || 1))
+                                              }
+                                              className="w-full h-7 px-2 text-xs rounded border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                                              placeholder="Ví dụ: 3 kỳ"
+                                            />
+                                          </div>
+                                        )}
+
+                                        {/* Number of Clusters K */}
+                                        {rec.task_type === "clustering" && (
+                                          <div className="space-y-1 col-span-1 sm:col-span-2">
+                                            <label className="text-[10px] font-medium text-foreground/90 block">
+                                              Số nhóm phân cụm (K clusters):
+                                            </label>
+                                            <input
+                                              type="number"
+                                              min={2}
+                                              max={10}
+                                              value={selectedK}
+                                              onChange={(e) =>
+                                                setSelectedK(Math.max(2, Math.min(10, parseInt(e.target.value) || 2)))
+                                              }
+                                              className="w-full h-7 px-2 text-xs rounded border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                                              placeholder="Ví dụ: 3 cụm"
+                                            />
+                                          </div>
+                                        )}
+
+                                        {/* Test Size Input */}
+                                        {rec.task_type === "classification" && (
+                                          <div className="space-y-1">
+                                            <label className="text-[10px] font-medium text-foreground/90 block">
+                                              Tỷ lệ kiểm định (Test Size %):
+                                            </label>
+                                            <input
+                                              type="number"
+                                              min={10}
+                                              max={50}
+                                              step={5}
+                                              value={selectedTestSize}
+                                              onChange={(e) =>
+                                                setSelectedTestSize(
+                                                  Math.max(10, Math.min(50, parseInt(e.target.value) || 20))
+                                                )
+                                              }
+                                              className="w-full h-7 px-2 text-xs rounded border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                                              placeholder="Ví dụ: 20%"
+                                            />
+                                          </div>
+                                        )}
+                                      </div>
+
+                                      {/* Action buttons inside configuration form */}
+                                      <div className="flex items-center justify-end gap-2 pt-1 border-t border-border/40">
+                                        <Button
+                                          type="button"
+                                          size="sm"
+                                          variant="ghost"
+                                          onClick={() => setActiveConfigAlgoId(null)}
+                                          className="h-7 text-xs px-2.5 text-muted-foreground hover:text-foreground"
+                                        >
+                                          <X className="size-3 mr-1" />
+                                          Đóng
+                                        </Button>
+                                        <Button
+                                          type="button"
+                                          size="sm"
+                                          variant="default"
+                                          onClick={() => handleExecuteConfiguredAlgorithm(rec)}
+                                          disabled={isLoading}
+                                          className="h-7 text-xs gap-1.5 font-medium cursor-pointer"
+                                        >
+                                          <Play className="size-3 shrink-0" />
+                                          <span>Chạy phân tích trong đoạn chat</span>
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    /* Action buttons when collapsed */
+                                    <div className="flex items-center gap-1.5 pt-1">
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() =>
+                                          handleOpenConfig(rec, msg.recommendation_data?.available_fields)
+                                        }
+                                        disabled={isLoading}
+                                        className="h-7 text-xs flex-1 gap-1 font-medium cursor-pointer"
+                                        title="Tùy chỉnh cột phân tích và các chỉ số"
+                                      >
+                                        <SlidersHorizontal className="size-3 shrink-0" />
+                                        <span>Chọn trường & Nhập chỉ số</span>
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="default"
+                                        onClick={() => handleRunAlgorithm(rec)}
+                                        disabled={isLoading}
+                                        className="h-7 text-xs gap-1 font-medium cursor-pointer shrink-0"
+                                        title="Chạy ngay với thiết lập mặc định tối ưu"
+                                      >
+                                        <TrendingUp className="size-3 shrink-0" />
+                                        <span className="hidden xs:inline">Chạy ngay</span>
+                                        <ArrowRight className="size-3 shrink-0" />
+                                      </Button>
+                                    </div>
+                                  )}
+                                </div>
+                              )
+                            })}
+                          </div>
                         </div>
                       )}
 
                       {/* Chart Visualization */}
                       {msg.chart_image && (
-                        <div className="rounded-lg border border-border/70 bg-card p-2 space-y-1.5 overflow-hidden">
+                        <div className="rounded-lg border border-border/70 bg-card p-2 space-y-2 overflow-hidden">
                           <div className="flex items-center justify-between border-b border-border/60 pb-1">
                             <span className="text-xs font-medium text-foreground flex items-center gap-1.5">
                               <BarChart3 className="size-3.5 text-primary" /> Biểu đồ phân tích
@@ -455,6 +809,35 @@ export default function DataAnalyzer({
                           </div>
                           <div className="rounded-md overflow-hidden bg-background flex items-center justify-center p-1">
                             <ResultFigure src={msg.chart_image} alt="Biểu đồ phân tích" />
+                          </div>
+
+                          {/* Quick Follow-up Actions directly in Chat */}
+                          <div className="pt-2 flex flex-wrap gap-1.5 border-t border-border/40">
+                            <span className="text-[10px] text-muted-foreground w-full mb-0.5 font-medium">Thao tác tiếp theo trong đoạn chat:</span>
+                            <button
+                              type="button"
+                              onClick={() => handleSendMessage("Hãy phân tích sâu hơn về các chỉ số thống kê, tỷ lệ tăng trưởng và xu hướng từ biểu đồ vừa vẽ.")}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md border border-border/80 bg-background hover:bg-muted text-[11px] text-foreground transition-all cursor-pointer"
+                            >
+                              <Sparkles className="size-3 text-primary" />
+                              <span>Phân tích thống kê & xu hướng</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleSendMessage("Hãy kiểm tra và chỉ ra các điểm bất thường (outliers/anomalies) trong dữ liệu này.")}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md border border-border/80 bg-background hover:bg-muted text-[11px] text-foreground transition-all cursor-pointer"
+                            >
+                              <AlertCircle className="size-3 text-amber-500" />
+                              <span>Tìm điểm bất thường</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleSendMessage("Hãy dự phóng kịch bản tương lai và đề xuất lời khuyên kinh doanh cho doanh nghiệp.")}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md border border-border/80 bg-background hover:bg-muted text-[11px] text-foreground transition-all cursor-pointer"
+                            >
+                              <TrendingUp className="size-3 text-emerald-500" />
+                              <span>Lời khuyên kinh doanh SME</span>
+                            </button>
                           </div>
                         </div>
                       )}
