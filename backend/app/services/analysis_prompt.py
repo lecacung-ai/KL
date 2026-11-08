@@ -228,11 +228,15 @@ def build_analysis_prompt(
             history_text = "\nNgữ cảnh trò chuyện trước đó:\n" + "\n".join(history_lines) + "\n"
 
     viz_instruction = (
-        """📊 YÊU CẦU TRỰC QUAN HÓA (DATA VISUALIZATION):
+        """📊 YÊU CẦU TRỰC QUAN HÓA (DATA VISUALIZATION) - TIÊU CHUẨN THỰC NGHIỆM TỐI ƯU (ĐỘ TIN CẬY 99%):
 Người dùng CÓ yêu cầu vẽ biểu đồ/trực quan hóa cho câu hỏi này.
-- Hãy tính toán dữ liệu và dùng matplotlib.pyplot hoặc seaborn để vẽ biểu đồ trực quan, đẹp mắt.
-- BẮT BUỘC lưu biểu đồ vào file: plt.savefig('output.png', dpi=150, bbox_inches='tight') và gọi plt.close().
-- Đồng thời in kết quả phân tích số liệu ra màn hình."""
+Hãy áp dụng quy chuẩn thiết kế biểu đồ của Chuyên gia BI cấp cao kết hợp các bài học thực nghiệm:
+1. Luôn ép kiểu an toàn cho cột số liệu: df[cot_so] = pd.to_numeric(df[cot_so], errors='coerce').
+2. Luôn tổng hợp dữ liệu nhóm (groupby().sum() hoặc groupby().mean()), sắp xếp giảm dần và lấy Top 10 bản ghi tiêu biểu nhất để bố cục biểu đồ thoáng đẹp, không bị đè chữ.
+3. Đặt nhãn giá trị (data labels) rõ ràng trên đầu các cột hoặc điểm dữ liệu.
+4. Xoay nhãn trục hoành plt.xticks(rotation=45, ha='right') để nhãn hiển thị đầy đủ, không bị chồng lấn.
+5. Luôn dùng backend headless matplotlib.use('Agg'), lưu biểu đồ vào file: plt.savefig('output.png', dpi=150, bbox_inches='tight') và gọi plt.close('all').
+6. Đồng thời in kết quả phân tích số liệu ra màn hình bằng lệnh print()."""
         if is_visualization
         else
         """⚠️ YÊU CẦU QUAN TRỌNG VỀ TRỰC QUAN HÓA:

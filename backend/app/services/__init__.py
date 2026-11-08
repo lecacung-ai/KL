@@ -8,6 +8,7 @@ from app.services.dataframe_service import dataframe_service
 from app.services.dataset_service import dataset_service
 from app.services.forecast_service import forecast_service
 from app.services.item_service import item_service
+from app.services.prompt_optimizer_service import prompt_optimizer_service
 from app.services.user_service import user_service
 
 __all__ = [
@@ -19,5 +20,6 @@ __all__ = [
     "dataset_service",
     "forecast_service",
     "item_service",
+    "prompt_optimizer_service",
     "user_service",
 ]

@@ -115,14 +115,20 @@ FORBIDDEN_DUNDER_ATTRS = {
 
 def clean_python_code(raw_code: str) -> str:
     """Trích xuất mã Python thuần túy, loại bỏ các khối markdown ```python ... ```"""
-    code = raw_code.strip()
-    if "```python" in code:
-        parts = code.split("```python")
-        code = parts[1].split("```")[0]
-    elif "```" in code:
+    import re
+    code = (raw_code or "").strip()
+    match = re.search(r"```(?:python|py)?\s*(.*?)\s*```", code, re.DOTALL | re.IGNORECASE)
+    if match:
+        return match.group(1).strip()
+    if "```" in code:
         parts = code.split("```")
-        code = parts[1].split("```")[0] if len(parts) > 1 else code
-    return code.strip()
+        for part in parts:
+            p_strip = part.strip()
+            if p_strip.lower().startswith(("python", "py")):
+                p_strip = re.sub(r"^(?:python|py)\s*", "", p_strip, flags=re.IGNORECASE).strip()
+            if any(k in p_strip for k in ["import ", "df", "print(", "plt.", "pd."]):
+                return p_strip
+    return code
 
 
 def inspect_code_security(code: str) -> tuple[bool, str | None]:
@@ -279,6 +285,14 @@ try:
 
     pd.read_csv = _smart_read_csv
     pd.read_excel = _smart_read_excel
+
+    # Tự động nạp sẵn biến DataFrame df nếu có tệp dữ liệu được truyền vào
+    _target_file = DATA_FILE_NAME if os.path.exists(DATA_FILE_NAME) else ORIGINAL_FILE_PATH
+    if _target_file and os.path.exists(_target_file):
+        if str(_target_file).endswith('.csv'):
+            df = _orig_read_csv(_target_file)
+        else:
+            df = _orig_read_excel(_target_file)
 except Exception:
     pass
 
