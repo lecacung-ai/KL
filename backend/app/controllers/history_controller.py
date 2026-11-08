@@ -2,6 +2,7 @@
 
 import uuid
 from typing import Any
+from pydantic import BaseModel
 
 from fastapi import APIRouter, Query
 
@@ -43,3 +44,24 @@ def delete_history_item(id: uuid.UUID, session: SessionDep, current_user: Curren
 def clear_all_history(session: SessionDep, current_user: CurrentUser) -> Any:
     analysis_history_service.clear(session, current_user)
     return Message(message="Đã dọn dẹp sạch toàn bộ lịch sử phân tích")
+
+
+class BulkDeleteHistoryRequest(BaseModel):
+    ids: list[uuid.UUID]
+
+
+@router.post("/bulk-delete", response_model=Message)
+def bulk_delete_history(
+    request: BulkDeleteHistoryRequest,
+    session: SessionDep,
+    current_user: CurrentUser,
+) -> Message:
+    count = 0
+    for history_id in request.ids:
+        try:
+            analysis_history_service.delete(session, history_id, current_user)
+            count += 1
+        except Exception:
+            pass
+    return Message(message=f"Đã xóa thành công {count} bản ghi lịch sử")
+

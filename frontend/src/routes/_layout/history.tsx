@@ -1,5 +1,5 @@
 import { PageHeading } from "@/components/Common/PageHeading"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { createFileRoute } from "@tanstack/react-router"
 import {
   History as HistoryIcon,
@@ -26,6 +26,7 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
@@ -74,6 +75,11 @@ function HistoryPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
 
+  // Multi-select state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false)
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false)
+
   // Modal detail
   const [selectedItem, setSelectedItem] = useState<AnalysisHistoryItem | null>(null)
   const [isDetailOpen, setIsDetailOpen] = useState(false)
@@ -109,7 +115,12 @@ function HistoryPage() {
     e.stopPropagation()
     try {
       await HistoryService.deleteHistoryItem(id)
-      setHistoryItems(historyItems.filter((item) => item.id !== id))
+      setHistoryItems((prev) => prev.filter((item) => item.id !== id))
+      setSelectedIds((prev) => {
+        const next = new Set(prev)
+        next.delete(id)
+        return next
+      })
       toast.success("Đã xóa bản ghi")
       const statRes = await HistoryService.getStats()
       setStats(statRes)
@@ -118,11 +129,28 @@ function HistoryPage() {
     }
   }
 
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return
+    try {
+      setIsBulkDeleting(true)
+      const res = await HistoryService.bulkDeleteHistory(Array.from(selectedIds))
+      toast.success(res.message || `Đã xóa thành công ${selectedIds.size} bản ghi`)
+      setSelectedIds(new Set())
+      setIsBulkDeleteDialogOpen(false)
+      loadData()
+    } catch {
+      toast.error("Lỗi khi xóa các bản ghi đã chọn")
+    } finally {
+      setIsBulkDeleting(false)
+    }
+  }
+
   const handleClearAll = async () => {
     setIsDeleting(true)
     try {
       await HistoryService.clearAllHistory()
       setHistoryItems([])
+      setSelectedIds(new Set())
       setStats({
         total_queries: 0,
         success_rate_pct: 100,
@@ -136,6 +164,33 @@ function HistoryPage() {
     } finally {
       setIsDeleting(false)
     }
+  }
+
+  const isAllSelected = useMemo(() => {
+    return (
+      historyItems.length > 0 &&
+      historyItems.every((item) => selectedIds.has(item.id))
+    )
+  }, [historyItems, selectedIds])
+
+  const handleToggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(historyItems.map((item) => item.id)))
+    }
+  }
+
+  const handleToggleSelectRow = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
   }
 
   const handleCopyCode = (code: string) => {
@@ -185,7 +240,7 @@ function HistoryPage() {
                 onClick={() => setIsClearAllDialogOpen(true)}
                 className="gap-1.5 shadow-2xs h-8 text-xs"
               >
-                <Trash2 className="size-3.5" /> Dọn dẹp
+                <Trash2 className="size-3.5" /> Dọn dẹp tất cả
               </Button>
             )}
           </div>
@@ -301,12 +356,52 @@ function HistoryPage() {
         </div>
       </div>
 
-      {/* History Table - No pagination controls as requested */}
+      {/* Multi-Selection Action Strip */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center justify-between p-3 rounded-xl border border-primary/30 bg-primary/5 text-xs">
+          <div className="flex items-center gap-2">
+            <Badge variant="default" className="text-xs px-2.5 py-0.5 font-medium">
+              Đã chọn {selectedIds.size} bản ghi
+            </Badge>
+            <span className="text-muted-foreground hidden sm:inline">
+              (trên tổng số {historyItems.length} bản ghi đang hiển thị)
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSelectedIds(new Set())}
+              className="h-7.5 text-xs text-muted-foreground hover:text-foreground"
+            >
+              Bỏ chọn
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setIsBulkDeleteDialogOpen(true)}
+              className="h-7.5 text-xs gap-1.5 shadow-2xs font-medium"
+            >
+              <Trash2 className="size-3.5" />
+              Xóa {selectedIds.size} bản ghi đã chọn
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* History Table */}
       <div className="w-full min-w-0 max-w-full rounded-xl border border-border/80 bg-card shadow-2xs overflow-hidden">
         <div className="overflow-x-auto">
           <Table>
             <TableHeader className="bg-muted/30">
               <TableRow className="border-border/60 hover:bg-transparent">
+                <TableHead className="w-10 pl-4 pr-1">
+                  <Checkbox
+                    checked={isAllSelected}
+                    onCheckedChange={handleToggleSelectAll}
+                    aria-label="Chọn tất cả bản ghi"
+                  />
+                </TableHead>
                 <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Thời gian</TableHead>
                 <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Dataset</TableHead>
                 <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Yêu cầu / Câu hỏi</TableHead>
@@ -320,6 +415,7 @@ function HistoryPage() {
               {isLoading ? (
                 Array.from({ length: 5 }).map((_, idx) => (
                   <TableRow key={idx}>
+                    <TableCell className="w-10 pl-4 pr-1"><Skeleton className="size-4" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-28" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-60" /></TableCell>
@@ -331,7 +427,7 @@ function HistoryPage() {
                 ))
               ) : historyItems.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="h-40 text-center">
+                  <TableCell colSpan={8} className="h-40 text-center">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <HistoryIcon className="size-6 text-muted-foreground/50" />
                       <p className="text-sm font-medium text-foreground">Chưa có bản ghi phân tích nào</p>
@@ -341,12 +437,24 @@ function HistoryPage() {
               ) : (
                 historyItems.map((item) => {
                   const isSuccess = item.status === "success"
+                  const isSelected = selectedIds.has(item.id)
+
                   return (
                     <TableRow
                       key={item.id}
                       onClick={() => openDetailModal(item)}
-                      className="border-border/60 cursor-pointer hover:bg-muted/30 transition-colors"
+                      className={`border-border/60 cursor-pointer transition-colors ${
+                        isSelected ? "bg-primary/5 hover:bg-primary/10" : "hover:bg-muted/30"
+                      }`}
                     >
+                      <TableCell className="w-10 pl-4 pr-1" onClick={(e) => e.stopPropagation()}>
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => handleToggleSelectRow(item.id)}
+                          aria-label="Chọn bản ghi này"
+                        />
+                      </TableCell>
+
                       <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                         {new Date(item.created_at).toLocaleString("vi-VN", {
                           hour: "2-digit",
@@ -441,71 +549,60 @@ function HistoryPage() {
                         : "bg-destructive/10 text-destructive border-destructive/20"
                     }`}
                   >
-                    {selectedItem.status === "success" ? <CheckCircle2 className="size-3" /> : <AlertCircle className="size-3" />}
-                    {selectedItem.status === "success" ? "Thành công" : "Lỗi"}
+                    {selectedItem.status === "success" ? (
+                      <CheckCircle2 className="size-3" />
+                    ) : (
+                      <AlertCircle className="size-3" />
+                    )}
+                    {selectedItem.status === "success" ? "Thành công" : "Thất bại"}
                   </Badge>
-                  <span className="text-[11px] text-muted-foreground font-mono">
+                  <span className="text-xs text-muted-foreground font-mono">
                     {new Date(selectedItem.created_at).toLocaleString("vi-VN")}
                   </span>
                 </div>
-                <DialogTitle className="text-sm sm:text-base font-semibold mt-1 text-foreground leading-snug break-words">
+                <DialogTitle className="text-sm font-semibold text-foreground pt-1.5 leading-snug">
                   {selectedItem.query}
                 </DialogTitle>
-                <DialogDescription className="text-xs text-muted-foreground">
-                  Dataset: <strong className="text-foreground">{selectedItem.dataset_name}</strong> • Sandbox: <strong className="text-foreground">{selectedItem.execution_time_ms}ms</strong> • RAM: <strong className="text-foreground">{selectedItem.memory_mb} MB</strong>
+                <DialogDescription className="text-xs text-muted-foreground flex items-center gap-1.5 pt-0.5">
+                  <FileSpreadsheet className="size-3.5 text-primary" />
+                  <span>Dataset: <strong>{selectedItem.dataset_name}</strong></span>
                 </DialogDescription>
               </DialogHeader>
 
-              {/* Tabs Inside Modal */}
-              <Tabs value={activeDetailTab} onValueChange={setActiveDetailTab} className="w-full min-w-0">
-                <TabsList className="h-8 bg-muted/60 p-0.5">
-                  <TabsTrigger value="overview" className="text-xs h-7 px-2.5 gap-1">
+              {/* Detail Tabs */}
+              <Tabs value={activeDetailTab} onValueChange={setActiveDetailTab} className="w-full">
+                <TabsList className="grid grid-cols-4 h-8 bg-muted/50 p-0.5 rounded-lg">
+                  <TabsTrigger value="overview" className="text-xs gap-1 py-1">
                     <Info className="size-3" /> Tổng quan
                   </TabsTrigger>
-                  {selectedItem.chart_image && (
-                    <TabsTrigger value="chart" className="text-xs h-7 px-2.5 gap-1">
-                      <BarChart3 className="size-3 text-primary" /> Biểu đồ
-                    </TabsTrigger>
-                  )}
-                  {selectedItem.stdout && (
-                    <TabsTrigger value="stdout" className="text-xs h-7 px-2.5 gap-1">
-                      <Terminal className="size-3" /> Kết quả
-                    </TabsTrigger>
-                  )}
-                  {selectedItem.ai_code && (
-                    <TabsTrigger value="code" className="text-xs h-7 px-2.5 gap-1">
-                      <Code2 className="size-3" /> Mã Python
-                    </TabsTrigger>
-                  )}
-                  {selectedItem.error_message && (
-                    <TabsTrigger value="error" className="text-xs h-7 px-2.5 gap-1 text-destructive">
-                      <AlertCircle className="size-3" /> Lỗi
-                    </TabsTrigger>
-                  )}
+                  <TabsTrigger value="chart" disabled={!selectedItem.chart_image} className="text-xs gap-1 py-1">
+                    <BarChart3 className="size-3" /> Biểu đồ
+                  </TabsTrigger>
+                  <TabsTrigger value="code" className="text-xs gap-1 py-1">
+                    <Code2 className="size-3" /> Mã Python
+                  </TabsTrigger>
+                  <TabsTrigger value="output" className="text-xs gap-1 py-1">
+                    <Terminal className="size-3" /> Kết quả
+                  </TabsTrigger>
                 </TabsList>
 
                 {/* Tab: Overview */}
-                <TabsContent value="overview" className="space-y-2.5 pt-2 min-w-0">
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <TabsContent value="overview" className="space-y-2 pt-2 min-w-0">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
                     <div className="p-2.5 rounded-lg border border-border/70 bg-card">
-                      <p className="text-[11px] text-muted-foreground">Thời gian</p>
-                      <p className="text-sm font-semibold mt-0.5">{selectedItem.execution_time_ms} ms</p>
+                      <span className="text-[10px] font-semibold text-muted-foreground uppercase">Thời gian thực thi:</span>
+                      <p className="font-semibold text-foreground mt-0.5">{selectedItem.execution_time_ms} ms</p>
                     </div>
                     <div className="p-2.5 rounded-lg border border-border/70 bg-card">
-                      <p className="text-[11px] text-muted-foreground">Bộ nhớ</p>
-                      <p className="text-sm font-semibold mt-0.5">{selectedItem.memory_mb} MB</p>
+                      <span className="text-[10px] font-semibold text-muted-foreground uppercase">Bộ nhớ sử dụng:</span>
+                      <p className="font-semibold text-foreground mt-0.5">{selectedItem.memory_mb} MB</p>
                     </div>
                     <div className="p-2.5 rounded-lg border border-border/70 bg-card">
-                      <p className="text-[11px] text-muted-foreground">Trạng thái</p>
-                      <p className="text-sm font-semibold mt-0.5">{selectedItem.status === "success" ? "Thành công" : "Lỗi"}</p>
-                    </div>
-                    <div className="p-2.5 rounded-lg border border-border/70 bg-card min-w-0">
-                      <p className="text-[11px] text-muted-foreground">Tệp dữ liệu</p>
-                      <p className="text-xs font-semibold truncate mt-0.5">{selectedItem.dataset_name}</p>
+                      <span className="text-[10px] font-semibold text-muted-foreground uppercase">Phạm vi cột:</span>
+                      <p className="font-semibold text-foreground mt-0.5 truncate">{selectedItem.scope_columns || "Toàn bộ"}</p>
                     </div>
                   </div>
-
-                  <div className="p-2.5 rounded-lg border border-border/70 bg-muted/20 space-y-1">
+                  <div className="p-2.5 rounded-lg border border-border/70 bg-card min-w-0">
                     <span className="text-[10px] font-semibold text-muted-foreground uppercase">Câu hỏi gốc:</span>
                     <p className="text-xs text-foreground break-words">{selectedItem.query}</p>
                   </div>
@@ -515,43 +612,19 @@ function HistoryPage() {
                 {selectedItem.chart_image && (
                   <TabsContent value="chart" className="space-y-2 pt-2 min-w-0">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">Biểu đồ trực quan hóa:</span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 text-xs gap-1"
-                        onClick={() => handleDownloadChart(selectedItem.chart_image!)}
-                      >
-                        <Download className="size-3" /> Tải ảnh PNG
-                      </Button>
-                    </div>
-                    <div className="rounded-xl border border-border/80 bg-muted/30 p-2 flex items-center justify-center overflow-hidden">
-                      <ResultFigure
-                        src={selectedItem.chart_image}
-                        alt="Biểu đồ phân tích"
-                      />
-                    </div>
-                  </TabsContent>
-                )}
-
-                {/* Tab: Stdout */}
-                {selectedItem.stdout && (
-                  <TabsContent value="stdout" className="space-y-1.5 pt-2 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">Kết quả tính toán:</span>
+                      <span className="text-xs text-muted-foreground">Biểu đồ sinh bởi Matplotlib:</span>
                       <Button
                         variant="ghost"
                         size="sm"
                         className="h-6 text-xs gap-1"
-                        onClick={() => handleCopyStdout(selectedItem.stdout!)}
+                        onClick={() => handleDownloadChart(selectedItem.chart_image!)}
                       >
-                        {hasCopiedStdout ? <Check className="size-3 text-emerald-500" /> : <Copy className="size-3" />}
-                        {hasCopiedStdout ? "Đã sao chép" : "Sao chép"}
+                        <Download className="size-3" /> Tải ảnh
                       </Button>
                     </div>
-                    <pre className="p-3 rounded-lg bg-muted/40 border border-border/70 text-xs font-mono whitespace-pre-wrap leading-relaxed max-h-64 overflow-y-auto break-words">
-                      {selectedItem.stdout}
-                    </pre>
+                    <div className="rounded-xl border border-border/80 bg-muted/30 p-2 flex items-center justify-center overflow-hidden">
+                      <ResultFigure src={selectedItem.chart_image} alt="Biểu đồ phân tích" />
+                    </div>
                   </TabsContent>
                 )}
 
@@ -576,7 +649,28 @@ function HistoryPage() {
                   </TabsContent>
                 )}
 
-                {/* Tab: Error */}
+                {/* Tab Output */}
+                <TabsContent value="output" className="space-y-2 pt-2 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">Kết quả tiêu chuẩn (Stdout):</span>
+                    {selectedItem.stdout && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleCopyStdout(selectedItem.stdout!)}
+                        className="h-7 text-xs gap-1"
+                      >
+                        {hasCopiedStdout ? <Check className="size-3 text-emerald-500" /> : <Copy className="size-3" />}
+                        {hasCopiedStdout ? "Đã chép" : "Sao chép"}
+                      </Button>
+                    )}
+                  </div>
+                  <pre className="p-3 rounded-lg bg-muted/40 text-foreground text-xs font-mono overflow-x-auto leading-relaxed max-h-64 border border-border/80">
+                    <code>{selectedItem.stdout || "(Không có kết quả xuất dạng chuỗi)"}</code>
+                  </pre>
+                </TabsContent>
+
+                {/* Tab Error if any */}
                 {selectedItem.error_message && (
                   <TabsContent value="error" className="space-y-1.5 pt-2 min-w-0">
                     <span className="text-xs text-destructive font-medium">Chi tiết lỗi:</span>
@@ -612,6 +706,43 @@ function HistoryPage() {
             </Button>
             <Button variant="destructive" size="sm" onClick={handleClearAll} disabled={isDeleting}>
               {isDeleting ? "Đang xóa..." : "Xác nhận xóa"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirmation Dialog Bulk Delete */}
+      <Dialog open={isBulkDeleteDialogOpen} onOpenChange={setIsBulkDeleteDialogOpen}>
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-semibold text-destructive flex items-center gap-2">
+              <Trash2 className="size-4" /> Xác nhận xóa hàng loạt
+            </DialogTitle>
+            <DialogDescription className="text-xs leading-relaxed space-y-1">
+              <span>
+                Bạn có chắc chắn muốn xóa vĩnh viễn <strong>{selectedIds.size} bản ghi lịch sử</strong> đã chọn?
+              </span>
+              <span className="block text-destructive font-medium">
+                Thao tác này không thể hoàn tác.
+              </span>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0 mt-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsBulkDeleteDialogOpen(false)}
+              disabled={isBulkDeleting}
+            >
+              Hủy
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleBulkDelete}
+              disabled={isBulkDeleting}
+            >
+              {isBulkDeleting ? "Đang xóa..." : `Xóa ${selectedIds.size} bản ghi`}
             </Button>
           </DialogFooter>
         </DialogContent>

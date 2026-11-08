@@ -17,7 +17,6 @@ import {
   User as UserIcon,
   ChevronDown,
   ChevronUp,
-  RefreshCw,
   Sparkles,
   TrendingUp,
   ArrowRight,
@@ -32,6 +31,7 @@ import { LoadingButton } from "@/components/ui/loading-button"
 import { ResultFigure } from "@/components/Common/ResultFigure"
 import { MarkdownRenderer } from "@/components/Common/MarkdownRenderer"
 import { DatasetsService, Dataset } from "@/services/datasetsService"
+import { InteractiveUploadDialog } from "@/components/Datasets/InteractiveUploadDialog"
 import {
   ForecastService,
   RecommendationResponseData,
@@ -89,7 +89,6 @@ export default function DataAnalyzer({
   const [selectedDatasetId, setSelectedDatasetId] = useState<string>("")
   const [query, setQuery] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const [isUploading, setIsUploading] = useState(false)
   const [copiedCodeId, setCopiedCodeId] = useState<string | null>(null)
   const [expandedTraceIds, setExpandedTraceIds] = useState<Record<string, boolean>>({})
 
@@ -101,8 +100,8 @@ export default function DataAnalyzer({
   }
 
   const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false)
   const chatBottomRef = useRef<HTMLDivElement>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   // Interactive algorithm config state inside chat
@@ -187,24 +186,19 @@ export default function DataAnalyzer({
     }
   }
 
-  // Single upload handler
-  const handleLocalFileUpload = async (uploadedFile: File) => {
-    setIsUploading(true)
+  const handleInteractiveUploadSuccess = async () => {
     try {
-      const newDataset = await DatasetsService.uploadDataset(uploadedFile)
-      setDatasets((prev) => [newDataset, ...prev.filter((d) => d.id !== newDataset.id)])
-      setSelectedDatasetId(newDataset.id)
-      if (onDatasetSaved) {
-        onDatasetSaved(newDataset)
+      const res = await DatasetsService.getDatasets()
+      setDatasets(res.data)
+      if (res.data.length > 0) {
+        setSelectedDatasetId(res.data[0].id)
+        sessionStorage.setItem("finai_selected_dataset_id", res.data[0].id)
+        if (onDatasetSaved) {
+          onDatasetSaved(res.data[0])
+        }
       }
-      toast.success(`Đã tải lên "${newDataset.filename}"`)
-    } catch (err: any) {
-      toast.error(err.response?.data?.detail || "Không thể tải tệp lên")
-    } finally {
-      setIsUploading(false)
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ""
-      }
+    } catch (err) {
+      console.error("Lỗi khi cập nhật danh sách dữ liệu sau khi tải lên:", err)
     }
   }
 
@@ -423,28 +417,13 @@ export default function DataAnalyzer({
             type="button"
             variant="default"
             size="sm"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isUploading}
-            className="h-8 text-xs gap-1.5 font-medium shrink-0"
-            title="Tải lên tệp dữ liệu Excel hoặc CSV"
+            onClick={() => setIsUploadDialogOpen(true)}
+            className="h-8 text-xs gap-1.5 font-medium shrink-0 cursor-pointer"
+            title="Tải lên tệp dữ liệu Excel hoặc CSV (Kiểm tra và tiền xử lý thông minh)"
           >
-            {isUploading ? (
-              <RefreshCw className="size-3.5 animate-spin" />
-            ) : (
-              <Upload className="size-3.5" />
-            )}
-            <span>{isUploading ? "Đang tải..." : "Tải lên Dữ liệu"}</span>
+            <Upload className="size-3.5" />
+            <span>Tải lên Dữ liệu</span>
           </Button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".csv, .xlsx, .xls"
-            className="sr-only"
-            onChange={(e) => {
-              const f = e.target.files?.[0]
-              if (f) handleLocalFileUpload(f)
-            }}
-          />
 
           {/* New Chat Button */}
           <Button
@@ -988,6 +967,13 @@ export default function DataAnalyzer({
           </div>
         </div>
       </div>
+
+      {/* Interactive Upload Modal with 4-case handling */}
+      <InteractiveUploadDialog
+        open={isUploadDialogOpen}
+        onOpenChange={setIsUploadDialogOpen}
+        onSuccess={handleInteractiveUploadSuccess}
+      />
     </div>
   )
 }

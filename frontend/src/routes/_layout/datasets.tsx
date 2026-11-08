@@ -21,6 +21,7 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   DropdownMenu,
@@ -46,7 +47,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { DatasetsService, Dataset } from "@/services/datasetsService"
-import { UploadDatasetDialog } from "@/components/Datasets/UploadDatasetDialog"
+import { InteractiveUploadDialog } from "@/components/Datasets/InteractiveUploadDialog"
 import { DownloadDatasetButton } from "@/components/Datasets/DownloadDatasetButton"
 
 export const Route = createFileRoute("/_layout/datasets")({
@@ -66,6 +67,11 @@ function DatasetsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [filterType, setFilterType] = useState<"all" | "excel" | "csv">("all")
+
+  // Multi-select state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false)
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false)
 
   // Modals state
   const [isUploadOpen, setIsUploadOpen] = useState(false)
@@ -94,12 +100,33 @@ function DatasetsPage() {
       setIsDeleting(true)
       await DatasetsService.deleteDataset(deleteDatasetItem.id)
       toast.success(`Đã xóa tệp "${deleteDatasetItem.filename}"`)
+      setSelectedIds((prev) => {
+        const next = new Set(prev)
+        next.delete(deleteDatasetItem.id)
+        return next
+      })
       setDeleteDatasetItem(null)
       fetchDatasets()
     } catch {
       toast.error("Không thể xóa tệp dữ liệu")
     } finally {
       setIsDeleting(false)
+    }
+  }
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return
+    try {
+      setIsBulkDeleting(true)
+      const res = await DatasetsService.bulkDeleteDatasets(Array.from(selectedIds))
+      toast.success(res.message || `Đã xóa thành công ${selectedIds.size} tệp dữ liệu`)
+      setSelectedIds(new Set())
+      setIsBulkDeleteDialogOpen(false)
+      fetchDatasets()
+    } catch {
+      toast.error("Không thể xóa các tệp dữ liệu đã chọn")
+    } finally {
+      setIsBulkDeleting(false)
     }
   }
 
@@ -137,6 +164,33 @@ function DatasetsPage() {
       return matchesSearch && matchesType
     })
   }, [datasets, searchQuery, filterType])
+
+  const isAllSelected = useMemo(() => {
+    return (
+      filteredDatasets.length > 0 &&
+      filteredDatasets.every((d) => selectedIds.has(d.id))
+    )
+  }, [filteredDatasets, selectedIds])
+
+  const handleToggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(filteredDatasets.map((d) => d.id)))
+    }
+  }
+
+  const handleToggleSelectRow = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }
 
   // Quick stats
   const totalDatasets = datasets.length
@@ -263,12 +317,52 @@ function DatasetsPage() {
         </div>
       </div>
 
-      {/* Main Datasets Table - No pagination controls as requested */}
+      {/* Multi-Selection Action Strip */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center justify-between p-3 rounded-xl border border-primary/30 bg-primary/5 text-xs">
+          <div className="flex items-center gap-2">
+            <Badge variant="default" className="text-xs px-2.5 py-0.5 font-medium">
+              Đã chọn {selectedIds.size} tệp
+            </Badge>
+            <span className="text-muted-foreground hidden sm:inline">
+              (trên tổng số {filteredDatasets.length} tệp đang hiển thị)
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSelectedIds(new Set())}
+              className="h-7.5 text-xs text-muted-foreground hover:text-foreground"
+            >
+              Bỏ chọn
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setIsBulkDeleteDialogOpen(true)}
+              className="h-7.5 text-xs gap-1.5 shadow-2xs font-medium"
+            >
+              <Trash2 className="size-3.5" />
+              Xóa {selectedIds.size} tệp đã chọn
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Main Datasets Table */}
       <div className="w-full min-w-0 max-w-full rounded-xl border border-border/80 bg-card shadow-2xs overflow-hidden">
         <div className="overflow-x-auto">
           <Table>
             <TableHeader className="bg-muted/30">
               <TableRow className="border-border/60 hover:bg-transparent">
+                <TableHead className="w-10 pl-4 pr-1">
+                  <Checkbox
+                    checked={isAllSelected}
+                    onCheckedChange={handleToggleSelectAll}
+                    aria-label="Chọn tất cả tệp"
+                  />
+                </TableHead>
                 <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Tên dataset</TableHead>
                 <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Phiên bản</TableHead>
                 <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Định dạng</TableHead>
@@ -283,6 +377,7 @@ function DatasetsPage() {
               {isLoading ? (
                 Array.from({ length: 4 }).map((_, idx) => (
                   <TableRow key={idx}>
+                    <TableCell className="w-10 pl-4 pr-1"><Skeleton className="size-4" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-40" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-12" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-16" /></TableCell>
@@ -295,7 +390,7 @@ function DatasetsPage() {
                 ))
               ) : filteredDatasets.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="h-40 text-center">
+                  <TableCell colSpan={9} className="h-40 text-center">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <FileSpreadsheet className="size-6 text-muted-foreground/50" />
                       <p className="text-sm font-medium text-foreground">
@@ -307,8 +402,23 @@ function DatasetsPage() {
               ) : (
                 filteredDatasets.map((item) => {
                   const isExcel = ["xlsx", "xls"].includes(item.file_type)
+                  const isSelected = selectedIds.has(item.id)
+
                   return (
-                    <TableRow key={item.id} className="border-border/60 hover:bg-muted/30 transition-colors">
+                    <TableRow
+                      key={item.id}
+                      className={`border-border/60 transition-colors ${
+                        isSelected ? "bg-primary/5 hover:bg-primary/10" : "hover:bg-muted/30"
+                      }`}
+                    >
+                      <TableCell className="w-10 pl-4 pr-1" onClick={(e) => e.stopPropagation()}>
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => handleToggleSelectRow(item.id)}
+                          aria-label={`Chọn ${item.filename}`}
+                        />
+                      </TableCell>
+
                       <TableCell className="min-w-0 max-w-[240px]">
                         <div className="flex items-center gap-2.5 min-w-0">
                           <div
@@ -414,13 +524,13 @@ function DatasetsPage() {
       </div>
 
       {/* Upload Dialog */}
-      <UploadDatasetDialog
+      <InteractiveUploadDialog
         open={isUploadOpen}
         onOpenChange={setIsUploadOpen}
         onSuccess={fetchDatasets}
       />
 
-      {/* Delete Confirmation Dialog */}
+      {/* Single Delete Confirmation Dialog */}
       <Dialog open={!!deleteDatasetItem} onOpenChange={(open) => !open && setDeleteDatasetItem(null)}>
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
@@ -447,6 +557,43 @@ function DatasetsPage() {
               disabled={isDeleting}
             >
               {isDeleting ? "Đang xóa..." : "Xóa vĩnh viễn"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <Dialog open={isBulkDeleteDialogOpen} onOpenChange={setIsBulkDeleteDialogOpen}>
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-semibold text-destructive flex items-center gap-2">
+              <Trash2 className="size-4" /> Xác nhận xóa hàng loạt
+            </DialogTitle>
+            <DialogDescription className="text-xs leading-relaxed space-y-1">
+              <span>
+                Bạn có chắc chắn muốn xóa vĩnh viễn <strong>{selectedIds.size} tệp dữ liệu</strong> đã chọn?
+              </span>
+              <span className="block text-destructive font-medium">
+                Thao tác này sẽ xóa toàn bộ các tệp tương ứng khỏi hệ thống và không thể hoàn tác.
+              </span>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0 mt-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsBulkDeleteDialogOpen(false)}
+              disabled={isBulkDeleting}
+            >
+              Hủy
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleBulkDelete}
+              disabled={isBulkDeleting}
+            >
+              {isBulkDeleting ? "Đang xóa..." : `Xóa ${selectedIds.size} tệp`}
             </Button>
           </DialogFooter>
         </DialogContent>

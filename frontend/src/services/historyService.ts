@@ -71,6 +71,15 @@ export const HistoryService = {
     return response.data
   },
 
+  async bulkDeleteHistory(ids: string[]): Promise<{ message: string }> {
+    const response = await axios.post<{ message: string }>(
+      `${API_URL}/api/v1/history/bulk-delete`,
+      { ids },
+      { headers: getAuthHeaders() }
+    )
+    return response.data
+  },
+
   async deleteHistoryItem(id: string): Promise<{ message: string }> {
     const response = await axios.delete<{ message: string }>(
       `${API_URL}/api/v1/history/${id}`,

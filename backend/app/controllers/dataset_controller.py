@@ -1,5 +1,6 @@
 import uuid
 from typing import Any
+from pydantic import BaseModel
 
 from fastapi import APIRouter, File, Form, UploadFile
 from fastapi.responses import FileResponse
@@ -155,3 +156,24 @@ def delete_dataset(
 ) -> Message:
     dataset_service.delete_dataset(session, id, current_user)
     return Message(message="Xóa tệp dữ liệu thành công")
+
+
+class BulkDeleteRequest(BaseModel):
+    ids: list[uuid.UUID]
+
+
+@router.post("/bulk-delete", response_model=Message)
+def bulk_delete_datasets(
+    request: BulkDeleteRequest,
+    session: SessionDep,
+    current_user: CurrentUser,
+) -> Message:
+    count = 0
+    for dataset_id in request.ids:
+        try:
+            dataset_service.delete_dataset(session, dataset_id, current_user)
+            count += 1
+        except Exception:
+            pass
+    return Message(message=f"Đã xóa thành công {count} tệp dữ liệu")
+

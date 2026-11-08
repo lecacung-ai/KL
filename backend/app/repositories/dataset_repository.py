@@ -61,3 +61,4 @@ class DatasetRepository:
 
 
 repository = DatasetRepository()
+dataset_repository = repository

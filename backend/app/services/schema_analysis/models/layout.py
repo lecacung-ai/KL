@@ -10,6 +10,7 @@ class DataLayout(str, Enum):
     TRANSPOSED = "transposed"
     KEY_VALUE = "key_value"
     REPORT = "report"
+    MULTI_TABLE = "multi_table"
     UNKNOWN = "unknown"
 
 

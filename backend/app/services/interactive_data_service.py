@@ -44,7 +44,7 @@ class InteractiveDataService:
     @property
     def repository(self) -> Any:
         if self._repository is None:
-            from app.repositories.dataset_repository import dataset_repository
+            from app.repositories.dataset_repository import repository as dataset_repository
             self._repository = dataset_repository
         return self._repository
 
@@ -171,11 +171,63 @@ class InteractiveDataService:
                 )
                 sheets_meta.append(sheet_meta)
 
+        # Multi-sheet schema matching & merge suggestions
+        mergeable_sheet_groups: list[dict[str, Any]] = []
+        if len(sheets_meta) > 1:
+            from collections import defaultdict
+            grouped_by_cols = defaultdict(list)
+            for s in sheets_meta:
+                if not s.get("is_empty") and s.get("column_count", 0) > 0:
+                    if s.get("has_header"):
+                        col_key = tuple(c["name"].strip().lower() for c in s["columns"])
+                    else:
+                        col_key = tuple(f"col_{i}" for i in range(s.get("column_count", 0)))
+                    grouped_by_cols[col_key].append(s["name"])
+
+            for col_key, member_sheets in grouped_by_cols.items():
+                if len(member_sheets) >= 2:
+                    mergeable_sheet_groups.append({
+                        "sheet_names": member_sheets,
+                        "column_count": len(col_key),
+                        "columns": [c for c in col_key],
+                        "suggested_name": f"{os.path.splitext(filename)[0]}_Merged_{'_'.join(member_sheets[:2])}",
+                        "message": f"Phát hiện các sheet {member_sheets} có cùng cấu trúc ({len(col_key)} cột). Bạn có muốn gộp lại thành 1 tệp duy nhất không?",
+                    })
+
+        special_cases_summary = {
+            "has_no_header_sheets": [s["name"] for s in sheets_meta if not s.get("has_header") and not s.get("is_empty")],
+            "has_missing_values_sheets": [
+                {
+                    "sheet_name": s["name"],
+                    "total_missing": s["missing_summary"]["total_missing"],
+                    "affected_rows": s["missing_summary"]["affected_rows"],
+                    "empty_rows_count": s["missing_summary"].get("empty_rows_count", 0),
+                    "columns": [c["name"] for c in s["missing_summary"].get("columns_with_missing", [])],
+                }
+                for s in sheets_meta
+                if s["missing_summary"]["total_missing"] > 0
+            ],
+            "is_multi_sheet": len(sheets_meta) > 1,
+            "total_sheets": len(sheets_meta),
+            "mergeable_sheet_groups": mergeable_sheet_groups,
+            "multi_table_sheets": [
+                {
+                    "sheet_name": s["name"],
+                    "tables_count": len(s["table_regions"]),
+                    "regions": [r["range"] for r in s["table_regions"]],
+                }
+                for s in sheets_meta
+                if s.get("is_multi_table")
+            ],
+        }
+
         return {
             "filename": filename,
             "file_type": ext.replace(".", ""),
             "total_sheets": len(sheets_meta),
             "sheets": sheets_meta,
+            "mergeable_sheet_groups": mergeable_sheet_groups,
+            "special_cases_summary": special_cases_summary,
         }
 
     def _inspect_single_sheet(
@@ -384,46 +436,127 @@ class InteractiveDataService:
         column_fills: dict[str, Any] = config.get("column_fills", {})
         drop_empty_rows = config.get("drop_empty_rows", True)
         drop_any_missing_rows = config.get("drop_any_missing_rows", False)
+        missing_choice = config.get("missing_choice", "default")
+        multi_sheet_action = config.get("multi_sheet_action", "single")
+        sheets_to_merge = config.get("sheets_to_merge", [])
 
-        # 1. Load Raw DataFrame for chosen sheet
-        if ext == ".csv":
+        # 1. Load Raw DataFrame for chosen sheet or merged sheets
+        if multi_sheet_action == "merge" and sheets_to_merge and ext in [".xlsx", ".xls"]:
+            merged_frames = []
+            base_cols: list[str] | None = None
+            for s_name in sheets_to_merge:
+                df_s = pd.read_excel(file_path, sheet_name=s_name, header=None)
+                h_res = header_detector.detect(df_s)
+                if h_res.header_type in [HeaderType.SINGLE_ROW_HEADER, HeaderType.MULTI_ROW_HEADER] and h_res.header_end_row is not None:
+                    cols = [str(c).strip() for c in h_res.column_names]
+                    df_clean = df_s.iloc[h_res.header_end_row + 1 :].copy().reset_index(drop=True)
+                    while len(cols) < df_clean.shape[1]:
+                        cols.append(f"Column_{len(cols) + 1}")
+                    df_clean.columns = cols[: df_clean.shape[1]]
+                else:
+                    df_clean = df_s.copy().reset_index(drop=True)
+                    if base_cols:
+                        df_clean.columns = base_cols[: df_clean.shape[1]]
+                    else:
+                        df_clean.columns = [f"Column_{i + 1}" for i in range(df_clean.shape[1])]
+
+                if base_cols is None:
+                    base_cols = list(df_clean.columns)
+
+                df_clean["_Nguon_Sheet"] = s_name
+                merged_frames.append(df_clean)
+
+            df = pd.concat(merged_frames, ignore_index=True)
+            filename = f"{os.path.splitext(filename)[0]}_Merged_{'_'.join(sheets_to_merge[:2])}.xlsx"
+        elif ext == ".csv":
             df = dataframe_service.load_dataframe(file_path)
         else:
             actual_sheet = sheet_name if sheet_name is not None else 0
             df_raw = pd.read_excel(file_path, sheet_name=actual_sheet, header=None)
+            df = None
+
+            # If user wants to merge all tables within this sheet
+            if selected_table_id == "merge_tables":
+                regions = table_region_extractor.extract_regions(df_raw, sheet_name=str(actual_sheet))
+                table_dfs = []
+                base_cols = None
+                for reg in regions.table_regions:
+                    t_raw = df_raw.iloc[reg.start_row : reg.end_row + 1, reg.start_column : reg.end_column + 1].reset_index(drop=True)
+                    h = header_detector.detect(t_raw)
+                    if h.header_type in [HeaderType.SINGLE_ROW_HEADER, HeaderType.MULTI_ROW_HEADER] and h.header_end_row is not None:
+                        t_data = t_raw.iloc[h.header_end_row + 1 :].copy().reset_index(drop=True)
+                        t_cols = [str(c).strip() for c in h.column_names]
+                        while len(t_cols) < t_data.shape[1]:
+                            t_cols.append(f"Column_{len(t_cols)+1}")
+                        t_data.columns = t_cols[: t_data.shape[1]]
+                    else:
+                        t_data = t_raw.copy().reset_index(drop=True)
+                        if base_cols:
+                            t_data.columns = base_cols[: t_data.shape[1]]
+                        else:
+                            t_data.columns = [f"Column_{i+1}" for i in range(t_data.shape[1])]
+                    if base_cols is None:
+                        base_cols = list(t_data.columns)
+                    t_data["_Nguon_Bang"] = reg.range
+                    table_dfs.append(t_data)
+                if table_dfs:
+                    df = pd.concat(table_dfs, ignore_index=True)
 
             # If user selected a specific sub-table from a multi-table sheet
-            if selected_table_id:
+            elif selected_table_id:
                 regions = table_region_extractor.extract_regions(df_raw, sheet_name=str(actual_sheet))
                 matched = next((r for r in regions.table_regions if r.table_id == selected_table_id), None)
                 if matched:
                     df_raw = df_raw.iloc[matched.start_row : matched.end_row + 1, matched.start_column : matched.end_column + 1].reset_index(drop=True)
 
-            # Handle Header Setup
-            if header_mode == "custom_row" and custom_header_row is not None:
-                header_idx = int(custom_header_row)
-                cols = df_raw.iloc[header_idx].tolist()
-                df = df_raw.iloc[header_idx + 1 :].copy().reset_index(drop=True)
-                df.columns = [str(c).strip() if pd.notna(c) and str(c).strip() else f"Column_{i+1}" for i, c in enumerate(cols)]
-            elif header_mode == "no_header":
-                df = df_raw.copy().reset_index(drop=True)
-                df.columns = [f"Column_{i + 1}" for i in range(df.shape[1])]
-            else:
-                # Detected header
-                h_res = header_detector.detect(df_raw)
-                if h_res.header_type in [HeaderType.SINGLE_ROW_HEADER, HeaderType.MULTI_ROW_HEADER] and h_res.header_end_row is not None:
-                    cols = h_res.column_names
-                    df = df_raw.iloc[h_res.header_end_row + 1 :].copy().reset_index(drop=True)
-                    while len(cols) < df.shape[1]:
-                        cols.append(f"Column_{len(cols) + 1}")
-                    df.columns = cols[: df.shape[1]]
-                else:
+            if df is None:
+                # Handle Header Setup
+                custom_column_names = config.get("custom_column_names")
+                if custom_column_names and isinstance(custom_column_names, (list, dict)):
+                    if isinstance(custom_column_names, dict):
+                        cols_list = [str(custom_column_names.get(str(i), f"Column_{i+1}")).strip() for i in range(df_raw.shape[1])]
+                    else:
+                        cols_list = [str(c).strip() for c in custom_column_names]
                     df = df_raw.copy().reset_index(drop=True)
-                    df.columns = [f"Column_{i + 1}" for i in range(df.shape[1])]
+                    while len(cols_list) < df.shape[1]:
+                        cols_list.append(f"Column_{len(cols_list)+1}")
+                    df.columns = cols_list[: df.shape[1]]
+                elif header_mode == "custom_row" and custom_header_row is not None:
+                    header_idx = int(custom_header_row)
+                    cols = df_raw.iloc[header_idx].tolist()
+                    df = df_raw.iloc[header_idx + 1 :].copy().reset_index(drop=True)
+                    df.columns = [str(c).strip() if pd.notna(c) and str(c).strip() else f"Column_{i+1}" for i, c in enumerate(cols)]
+                else:
+                    h_res = header_detector.detect(df_raw)
+                    if h_res.header_type in [HeaderType.SINGLE_ROW_HEADER, HeaderType.MULTI_ROW_HEADER] and h_res.header_end_row is not None and header_mode != "no_header":
+                        cols = h_res.column_names
+                        df = df_raw.iloc[h_res.header_end_row + 1 :].copy().reset_index(drop=True)
+                        while len(cols) < df.shape[1]:
+                            cols.append(f"Column_{len(cols) + 1}")
+                        df.columns = cols[: df.shape[1]]
+                    else:
+                        # No header detected!
+                        if not config.get("allow_no_header", False):
+                            raise AppException(
+                                ErrorCode.VALIDATION_ERROR,
+                                detail=f"Không thể tải lên: Bảng tính '{actual_sheet}' không có dòng tiêu đề (Header). Vui lòng bổ sung dòng tiêu đề cột hợp lệ trước khi tải lên.",
+                            )
+                        df = df_raw.copy().reset_index(drop=True)
+                        df.columns = [f"Column_{i + 1}" for i in range(df.shape[1])]
 
         # 2. Drop completely blank rows if requested
         if drop_empty_rows:
             df = df.dropna(how="all").reset_index(drop=True)
+
+        # 2b. Drop any row containing missing values if requested or chosen
+        if missing_choice == "drop_rows" or (drop_any_missing_rows and missing_choice not in ["fill_zero", "keep_raw"]):
+            df = df.dropna().reset_index(drop=True)
+        elif missing_choice == "fill_zero":
+            for c in df.columns:
+                if pd.api.types.is_numeric_dtype(df[c]):
+                    df[c] = df[c].fillna(0)
+                else:
+                    df[c] = df[c].fillna("0")
 
         # 3. Apply Column Renames (from smart quiz/suggestions or user input)
         if column_renames:
@@ -463,7 +596,7 @@ class InteractiveDataService:
                 df.at[int(r), c] = val
 
         # 6. Drop any remaining missing rows if requested
-        if drop_any_missing_rows:
+        if drop_any_missing_rows and missing_choice not in ["fill_zero", "keep_raw"]:
             df = df.dropna().reset_index(drop=True)
 
         # 7. Persist Cleaned Data as a new file in storage

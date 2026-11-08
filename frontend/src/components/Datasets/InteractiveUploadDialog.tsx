@@ -2,22 +2,14 @@ import { useState, useRef, useEffect, useMemo } from "react"
 import {
   UploadCloud,
   FileSpreadsheet,
-  AlertTriangle,
   CheckCircle2,
-  Sparkles,
+  AlertCircle,
+  Check,
+  X,
+  ChevronDown,
+  ChevronUp,
   Layers,
   Table as TableIcon,
-  Wand2,
-  RotateCcw,
-  Check,
-  ChevronRight,
-  ArrowRight,
-  ArrowLeft,
-  Type,
-  Edit3,
-  ShieldCheck,
-  AlertCircle,
-  FileCheck,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -25,14 +17,12 @@ import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   Table,
   TableBody,
@@ -49,7 +39,11 @@ import {
   InteractiveUploadConfig,
 } from "@/services/datasetsService"
 
-export type UploadWorkflowStep = "upload" | "detect_report" | "fixing" | "completed"
+export interface SheetStatusState {
+  sheetName: string
+  skipSheet: boolean
+  tableAction: "split_tables" | "merge_tables" // Hỗ trợ gộp & tách bảng trong 1 sheet
+}
 
 interface InteractiveUploadDialogProps {
   open: boolean
@@ -71,25 +65,16 @@ export function InteractiveUploadDialog({
   const [isDragging, setIsDragging] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // 4-Stage Workflow: Tải lên -> Phát hiện lỗi -> Sửa lỗi -> Hoàn thành & Cho phép tải lên
-  const [currentStep, setCurrentStep] = useState<UploadWorkflowStep>("upload")
-
-  // Inspection result
+  // Inspection data
   const [inspection, setInspection] = useState<WorkbookInspection | null>(null)
   const [selectedSheetName, setSelectedSheetName] = useState<string>("")
-  const [selectedTableId, setSelectedTableId] = useState<string | null>(null)
-
-  // Interactive configurations
-  const [headerMode, setHeaderMode] = useState<"detected" | "custom_row" | "custom_names" | "no_header">("detected")
-  const [customHeaderRow, setCustomHeaderRow] = useState<number | null>(null)
-  const [columnRenames, setColumnRenames] = useState<Record<string, string>>({})
-  const [cellFixes, setCellFixes] = useState<Record<string, any>>({}) // key: `${row}_${col}`
-  const [columnFills, setColumnFills] = useState<Record<string, any>>({}) // key: col, val: 'mean'|'median'|...
-  const [dropEmptyRows, setDropEmptyRows] = useState(true)
-  const [dropAnyMissingRows, setDropAnyMissingRows] = useState(false)
-
-  // Fixing sub-tab
-  const [fixSubTab, setFixSubTab] = useState<"headers" | "cleaning">("headers")
+  const [sheetStatuses, setSheetStatuses] = useState<Record<string, SheetStatusState>>({})
+  
+  // Multi-sheet merge action: "split" (tách riêng) | "merge" (gộp các sheet có cùng cấu trúc)
+  const [multiSheetAction, setMultiSheetAction] = useState<"split" | "merge">("split")
+  
+  // Data preview toggle
+  const [showPreview, setShowPreview] = useState<boolean>(false)
 
   // Reset when dialog opens/closes
   useEffect(() => {
@@ -98,51 +83,119 @@ export function InteractiveUploadDialog({
       setDescription("")
       setInspection(null)
       setSelectedSheetName("")
-      setSelectedTableId(null)
-      setColumnRenames({})
-      setCellFixes({})
-      setColumnFills({})
-      setHeaderMode("detected")
-      setCustomHeaderRow(null)
-      setDropEmptyRows(true)
-      setDropAnyMissingRows(false)
-      setCurrentStep("upload")
-      setFixSubTab("headers")
+      setSheetStatuses({})
+      setMultiSheetAction("split")
+      setShowPreview(false)
     } else if (initialFile) {
       handleFileSelect(initialFile)
     }
   }, [open, initialFile])
 
-  // Get active sheet object
+  // Multi-sheet merge group if detected
+  const mergeGroup = useMemo(() => {
+    if (!inspection?.mergeable_sheet_groups || inspection.mergeable_sheet_groups.length === 0) {
+      return null
+    }
+    return inspection.mergeable_sheet_groups[0]
+  }, [inspection])
+
+  // Active sheet object
   const currentSheet: SheetInspection | null = useMemo(() => {
     if (!inspection || !inspection.sheets || inspection.sheets.length === 0) return null
     return inspection.sheets.find((s) => s.name === selectedSheetName) || inspection.sheets[0]
   }, [inspection, selectedSheetName])
 
-  // When sheet changes, initialize header mode & sub-table
-  useEffect(() => {
-    if (currentSheet) {
-      if (!currentSheet.has_header) {
-        setHeaderMode("no_header")
-      } else {
-        setHeaderMode("detected")
-      }
-      if (currentSheet.is_multi_table && currentSheet.table_regions.length > 0) {
-        setSelectedTableId(currentSheet.table_regions[0].table_id)
-      } else {
-        setSelectedTableId(null)
-      }
-      setColumnRenames({})
-      setCellFixes({})
-      setColumnFills({})
-    }
-  }, [currentSheet?.name])
+  // Active sheet index
+  const activeSheetIndex = useMemo(() => {
+    if (!inspection?.sheets || !currentSheet) return 0
+    return inspection.sheets.findIndex((s) => s.name === currentSheet.name)
+  }, [inspection, currentSheet])
 
-  // Step 1: Handle File Selection & Fast Diagnostic Scan
+  const isLastSheet = useMemo(() => {
+    if (!inspection?.sheets || inspection.sheets.length === 0) return true
+    return activeSheetIndex === inspection.sheets.length - 1
+  }, [inspection, activeSheetIndex])
+
+  // Initialize sheet statuses when inspection finishes
+  useEffect(() => {
+    if (inspection && inspection.sheets) {
+      const initialMap: Record<string, SheetStatusState> = {}
+
+      inspection.sheets.forEach((s) => {
+        initialMap[s.name] = {
+          sheetName: s.name,
+          skipSheet: false,
+          tableAction: "split_tables", // Mặc định: tách các bảng riêng biệt
+        }
+      })
+
+      setSheetStatuses(initialMap)
+      setSelectedSheetName(inspection.sheets[0].name)
+      setMultiSheetAction("split")
+    }
+  }, [inspection])
+
+  // Current sheet status
+  const currentStatus: SheetStatusState = useMemo(() => {
+    if (!currentSheet) {
+      return {
+        sheetName: "",
+        skipSheet: false,
+        tableAction: "split_tables",
+      }
+    }
+    return (
+      sheetStatuses[currentSheet.name] || {
+        sheetName: currentSheet.name,
+        skipSheet: false,
+        tableAction: "split_tables",
+      }
+    )
+  }, [sheetStatuses, currentSheet])
+
+  // Update current sheet status
+  const updateCurrentStatus = (updates: Partial<SheetStatusState>) => {
+    if (!currentSheet) return
+    setSheetStatuses((prev) => ({
+      ...prev,
+      [currentSheet.name]: {
+        ...(prev[currentSheet.name] || currentStatus),
+        ...updates,
+      },
+    }))
+  }
+
+  // Calculate overall error statistics across sheets
+  const stats = useMemo(() => {
+    if (!inspection?.sheets) return { totalErrors: 0, invalidSheetsCount: 0, validSheetsCount: 0 }
+
+    let totalErrors = 0
+    let invalidSheetsCount = 0
+    let validSheetsCount = 0
+
+    inspection.sheets.forEach((s) => {
+      const isHeaderMissing = !s.has_header && !s.is_empty
+      const isDataMissing = (s.missing_summary?.affected_rows || 0) > 0
+      const sheetHasError = isHeaderMissing || isDataMissing
+
+      if (isHeaderMissing) totalErrors++
+      if (isDataMissing) totalErrors++
+
+      if (sheetHasError) {
+        invalidSheetsCount++
+      } else if (!s.is_empty) {
+        validSheetsCount++
+      }
+    })
+
+    return { totalErrors, invalidSheetsCount, validSheetsCount }
+  }, [inspection])
+
+  // File Select Handler
   const handleFileSelect = async (selectedFile: File) => {
     const ext = selectedFile.name.split(".").pop()?.toLowerCase()
     if (!["csv", "xlsx", "xls"].includes(ext || "")) {
-      toast.error("Định dạng không hợp lệ. Vui lòng chọn tệp .csv, .xlsx hoặc .xls")
+      toast.error("Định dạng không hợp lệ. Vui lòng chọn tệp .xlsx, .xls hoặc .csv")
       return
     }
 
@@ -152,17 +205,11 @@ export function InteractiveUploadDialog({
     try {
       const res = await DatasetsService.inspectWorkbook(selectedFile)
       setInspection(res)
-      if (res.sheets && res.sheets.length > 0) {
-        setSelectedSheetName(res.sheets[0].name)
-      }
-      // Move to Step 2: Diagnostic & Error Detection Report
-      setCurrentStep("detect_report")
-      toast.success(`Đã quét xong tệp "${selectedFile.name}". Hãy xem báo cáo lỗi phát hiện!`)
+      toast.success(`Đã quét tệp "${selectedFile.name}".`)
     } catch (err: any) {
       const msg = err.response?.data?.detail || "Không thể phân tích tệp dữ liệu. Vui lòng thử lại."
       toast.error(msg)
       setFile(null)
-      setCurrentStep("upload")
     } finally {
       setIsInspecting(false)
     }
@@ -176,123 +223,118 @@ export function InteractiveUploadDialog({
     }
   }
 
-  // Handle smart column suggestion click
-  const applyColumnSuggestion = (oldColName: string, suggestedName: string) => {
-    setColumnRenames((prev) => ({
-      ...prev,
-      [oldColName]: suggestedName,
-    }))
-    toast.success(`Đã đổi tên cột "${oldColName}" thành "${suggestedName}"`)
-  }
-
-  // Handle cell inline correction
-  const handleCellEdit = (rowIdx: number, colName: string, value: string) => {
-    const key = `${rowIdx}_${colName}`
-    setCellFixes((prev) => ({
-      ...prev,
-      [key]: value,
-    }))
-  }
-
-  // Apply batch column fill
-  const applyColumnFill = (colName: string, strategy: string, displayLabel: string) => {
-    setColumnFills((prev) => ({
-      ...prev,
-      [colName]: strategy,
-    }))
-    toast.success(`Đã thiết lập điền "${displayLabel}" cho cột ${colName}`)
-  }
-
-  // Calculate remaining missing count considering applied fills & fixes
-  const remainingMissingCount = useMemo(() => {
-    if (!currentSheet) return 0
-    let count = 0
-    for (const cell of currentSheet.missing_cells) {
-      const fixKey = `${cell.row_index}_${cell.column_name}`
-      const hasDirectFix = cellFixes[fixKey] !== undefined && cellFixes[fixKey] !== ""
-      const hasColumnFill = columnFills[cell.column_name] !== undefined
-      if (!hasDirectFix && !hasColumnFill) {
-        count++
-      }
+  // Next Sheet navigation
+  const handleNextSheet = () => {
+    if (!inspection?.sheets) return
+    if (activeSheetIndex < inspection.sheets.length - 1) {
+      setSelectedSheetName(inspection.sheets[activeSheetIndex + 1].name)
     }
-    return count
-  }, [currentSheet, cellFixes, columnFills])
+  }
 
-  // Count detected issues in current sheet
-  const sheetIssuesSummary = useMemo(() => {
-    if (!currentSheet) return { totalIssues: 0, missingCells: 0, hasHeaderIssue: false, isMultiTable: false, isMultiSheet: false }
-    const missingCells = currentSheet.missing_summary.total_missing
-    const hasHeaderIssue = !currentSheet.has_header
-    const isMultiTable = currentSheet.is_multi_table
-    const isMultiSheet = (inspection?.total_sheets || 0) > 1
-
-    let totalIssues = 0
-    if (missingCells > 0) totalIssues++
-    if (hasHeaderIssue) totalIssues++
-    if (isMultiTable) totalIssues++
-    if (isMultiSheet) totalIssues++
-
-    return { totalIssues, missingCells, hasHeaderIssue, isMultiTable, isMultiSheet }
-  }, [currentSheet, inspection])
-
-  // Step 4: Final Submit & Upload Cleaned Dataset
-  const handleSaveDataset = async () => {
-    if (!file || !currentSheet) {
-      toast.error("Vui lòng chọn tệp và cấu hình trước khi lưu.")
+  // Submit Handler: Only upload clean sheets, blocking error sheets unless user skipped them
+  const handleFinalSubmit = async (uploadOnlyValid: boolean = false) => {
+    if (!file || !inspection) {
+      toast.error("Chưa chọn tệp dữ liệu.")
       return
     }
 
     try {
       setIsSaving(true)
 
-      const fixesArray = Object.entries(cellFixes).map(([key, val]) => {
-        const parts = key.split("_")
-        const row = parseInt(parts[0], 10)
-        const col = parts.slice(1).join("_")
-        return { row, col, value: val }
-      })
+      // 1. CASE: USER CHOSE MULTI-SHEET MERGE
+      if (multiSheetAction === "merge" && mergeGroup) {
+        // Check if sheets to merge have blocking errors
+        const errorSheetsInGroup = mergeGroup.sheet_names.filter((name) => {
+          const s = inspection.sheets.find((sh) => sh.name === name)
+          return !s || !s.has_header || s.missing_summary.affected_rows > 0
+        })
 
-      const config: InteractiveUploadConfig = {
-        selected_sheet: currentSheet.name,
-        selected_table_id: selectedTableId,
-        header_mode: headerMode,
-        header_row_index: customHeaderRow,
-        column_renames: columnRenames,
-        cell_fixes: fixesArray,
-        column_fills: columnFills,
-        drop_empty_rows: dropEmptyRows,
-        drop_any_missing_rows: dropAnyMissingRows,
+        if (errorSheetsInGroup.length > 0 && !uploadOnlyValid) {
+          toast.error(
+            `Không thể gộp: Các sheet [${errorSheetsInGroup.join(
+              ", "
+            )}] có lỗi dữ liệu. Vui lòng tự hiệu chỉnh trong file Excel trước khi tải lên!`
+          )
+          setIsSaving(false)
+          return
+        }
+
+        const validGroupSheets = mergeGroup.sheet_names.filter((name) => {
+          const s = inspection.sheets.find((sh) => sh.name === name)
+          return s && s.has_header && s.missing_summary.affected_rows === 0
+        })
+
+        if (validGroupSheets.length < 2) {
+          toast.error("Không đủ số lượng sheet hợp lệ (không lỗi) để thực hiện gộp.")
+          setIsSaving(false)
+          return
+        }
+
+        const config: InteractiveUploadConfig = {
+          multi_sheet_action: "merge",
+          sheets_to_merge: validGroupSheets,
+          drop_empty_rows: true,
+          drop_any_missing_rows: false,
+          missing_choice: "keep_raw",
+        }
+
+        const res = await DatasetsService.uploadDatasetInteractive(
+          file,
+          config,
+          description || `Gộp các sheet: ${validGroupSheets.join(", ")}`
+        )
+        toast.success(`Đã gộp thành công ${validGroupSheets.length} sheet thành tệp "${res.filename}"!`)
+        onOpenChange(false)
+        onSuccess()
+        return
       }
 
-      const res = await DatasetsService.uploadDatasetInteractive(
-        file,
-        config,
-        description || `Nhập từ ${currentSheet.name} (${file.name})`
-      )
+      // 2. CASE: PROCESS VALID SHEETS INDIVIDUALLY (SPLIT)
+      let count = 0
+      for (const s of inspection.sheets) {
+        if (s.is_empty) continue
+        const status = sheetStatuses[s.name]
+        if (status?.skipSheet) continue
 
-      toast.success(`Hoàn thành xuất sắc! Đã tải lên tệp "${res.filename}" (v${res.version}) sạch 100%!`)
-      onOpenChange(false)
-      onSuccess()
-    } catch (err: any) {
-      const msg = err.response?.data?.detail || "Không thể lưu tệp dữ liệu đã chuẩn hóa."
-      toast.error(msg)
-    } finally {
-      setIsSaving(false)
-    }
-  }
+        const hasError = !s.has_header || s.missing_summary.affected_rows > 0
+        if (hasError) {
+          if (!uploadOnlyValid) {
+            toast.error(
+              `Sheet "${s.name}" có lỗi chưa được sửa trong file Excel. Vui lòng tự hiệu chỉnh hoặc đánh dấu bỏ qua sheet này.`
+            )
+            setIsSaving(false)
+            return
+          }
+          continue // Skip this error sheet when user chose uploadOnlyValid
+        }
 
-  // Upload original without remediation (bypass)
-  const handleUploadOriginal = async () => {
-    if (!file) return
-    try {
-      setIsSaving(true)
-      const res = await DatasetsService.uploadDataset(file, description)
-      toast.success(`Đã tải lên tệp gốc "${res.filename}"!`)
-      onOpenChange(false)
-      onSuccess()
+        const uploadConfig: InteractiveUploadConfig = {
+          selected_sheet: s.name,
+          selected_table_id: status?.tableAction === "merge_tables" ? "merge_tables" : undefined,
+          header_mode: "detected",
+          drop_empty_rows: true,
+          drop_any_missing_rows: false,
+          missing_choice: "keep_raw",
+          allow_no_header: false,
+        }
+
+        await DatasetsService.uploadDatasetInteractive(
+          file,
+          uploadConfig,
+          description || `Nhập từ sheet ${s.name}`
+        )
+        count++
+      }
+
+      if (count > 0) {
+        toast.success(`Đã tải lên thành công ${count} tập dữ liệu vào kho!`)
+        onOpenChange(false)
+        onSuccess()
+      } else {
+        toast.error("Không có sheet nào hợp lệ để tải lên. Vui lòng tự hiệu chỉnh các lỗi trong file Excel.")
+      }
     } catch (err: any) {
-      const msg = err.response?.data?.detail || "Không thể tải lên tệp."
-      toast.error(msg)
+      toast.error(err.response?.data?.detail || "Không thể tải tệp lên. Vui lòng thử lại.")
     } finally {
       setIsSaving(false)
     }
@@ -301,121 +343,29 @@ export function InteractiveUploadDialog({
   const formatFileSize = (bytes: number) => {
     if (bytes < 1024) return `${bytes} B`
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
   }
+
+  // Helper flags for active sheet
+  const activeSheetHasHeaderError = Boolean(currentSheet && !currentSheet.has_header && !currentSheet.is_empty)
+  const activeSheetHasMissingData = Boolean(currentSheet && (currentSheet.missing_summary?.affected_rows || 0) > 0)
+  const activeSheetHasAnyError = activeSheetHasHeaderError || activeSheetHasMissingData
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className={
-          currentStep !== "upload"
-            ? "max-w-5xl w-full h-[90vh] flex flex-col p-0 gap-0 overflow-hidden"
-            : "sm:max-w-[540px]"
-        }
-      >
-        {/* WORKFLOW PROGRESS STEPPER (When a file is loaded) */}
-        {inspection && (
-          <div className="border-b bg-muted/40 px-6 py-2.5 flex items-center justify-between text-xs shrink-0">
-            <div className="flex items-center gap-1.5 md:gap-3">
-              <span className="font-semibold text-foreground flex items-center gap-1">
-                <FileSpreadsheet className="size-4 text-emerald-600" /> Luồng Xử Lý:
-              </span>
-
-              {/* Step 1 Pill */}
-              <div className="flex items-center gap-1 text-muted-foreground">
-                <span className="flex size-4.5 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-600 text-[10px] font-bold">
-                  ✓
-                </span>
-                <span>1. Tải Lên</span>
-                <ChevronRight className="size-3 text-muted-foreground" />
-              </div>
-
-              {/* Step 2 Pill */}
-              <button
-                type="button"
-                onClick={() => setCurrentStep("detect_report")}
-                className={`flex items-center gap-1 transition-colors ${
-                  currentStep === "detect_report"
-                    ? "font-bold text-amber-600 dark:text-amber-400"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <span className={`flex size-4.5 items-center justify-center rounded-full text-[10px] font-bold ${
-                  currentStep === "detect_report" ? "bg-amber-500 text-white" : "bg-muted text-muted-foreground"
-                }`}>
-                  2
-                </span>
-                <span>2. Phát Hiện Lỗi</span>
-                <ChevronRight className="size-3 text-muted-foreground" />
-              </button>
-
-              {/* Step 3 Pill */}
-              <button
-                type="button"
-                onClick={() => setCurrentStep("fixing")}
-                className={`flex items-center gap-1 transition-colors ${
-                  currentStep === "fixing"
-                    ? "font-bold text-primary"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <span className={`flex size-4.5 items-center justify-center rounded-full text-[10px] font-bold ${
-                  currentStep === "fixing" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                }`}>
-                  3
-                </span>
-                <span>3. Sửa Lỗi Excel</span>
-                <ChevronRight className="size-3 text-muted-foreground" />
-              </button>
-
-              {/* Step 4 Pill */}
-              <button
-                type="button"
-                onClick={() => setCurrentStep("completed")}
-                className={`flex items-center gap-1 transition-colors ${
-                  currentStep === "completed"
-                    ? "font-bold text-emerald-600 dark:text-emerald-400"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <span className={`flex size-4.5 items-center justify-center rounded-full text-[10px] font-bold ${
-                  currentStep === "completed" ? "bg-emerald-600 text-white" : "bg-muted text-muted-foreground"
-                }`}>
-                  4
-                </span>
-                <span>4. Hoàn Thành & Tải Lên</span>
-              </button>
-            </div>
-
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setInspection(null)
-                setCurrentStep("upload")
-              }}
-              className="text-xs text-muted-foreground hover:text-foreground h-7 gap-1"
-            >
-              <RotateCcw className="size-3" /> Chọn lại tệp
-            </Button>
-          </div>
-        )}
-
+      <DialogContent className="!max-w-4xl w-[95vw] sm:w-[90vw] md:w-[85vw] max-h-[88vh] h-[88vh] flex flex-col p-0 gap-0 !overflow-hidden sm:rounded-2xl shadow-2xl bg-card border border-border">
         {/* ============================================================ */}
-        {/* STEP 1: CHỌN & TẢI TỆP LÊN                                    */}
+        {/* VIEW 1: FILE PICKER (CHƯA CHỌN TỆP)                          */}
         {/* ============================================================ */}
-        {currentStep === "upload" && !inspection && (
-          <div className="p-6 space-y-4">
+        {!file && (
+          <div className="p-6 sm:p-8 space-y-6 flex flex-col justify-center my-auto">
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2 text-xl font-semibold">
-                <div className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                  <FileSpreadsheet className="size-5" />
-                </div>
+              <DialogTitle className="text-lg font-bold flex items-center gap-2">
+                <FileSpreadsheet className="size-5 text-primary" />
                 Tải Lên Tệp Dữ Liệu Kinh Doanh
               </DialogTitle>
-              <DialogDescription>
-                Hỗ trợ bảng tính <strong>.xlsx, .xls, .csv</strong>. Hệ thống sẽ tự động quét, phát hiện các lỗi
-                thiếu ô dữ liệu, nhận diện tiêu đề, hỗ trợ đa Sheet và bóc tách nhiều bảng độc lập.
+              <DialogDescription className="text-xs text-muted-foreground leading-relaxed">
+                Hệ thống sẽ kiểm tra tính toàn vẹn dữ liệu từng sheet, thông báo các lỗi cần tự hiệu chỉnh trong file Excel và hỗ trợ tùy chọn gộp/tách dữ liệu.
               </DialogDescription>
             </DialogHeader>
 
@@ -427,10 +377,10 @@ export function InteractiveUploadDialog({
               onDragLeave={() => setIsDragging(false)}
               onDrop={handleDrop}
               onClick={() => fileInputRef.current?.click()}
-              className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-3 ${
+              className={`border-2 border-dashed rounded-2xl p-8 sm:p-12 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-3.5 ${
                 isDragging
                   ? "border-primary bg-primary/5 scale-[1.01]"
-                  : "border-muted-foreground/25 hover:border-primary/50 hover:bg-muted/30"
+                  : "border-muted-foreground/25 hover:border-primary/60 hover:bg-muted/30"
               }`}
             >
               <input
@@ -447,735 +397,537 @@ export function InteractiveUploadDialog({
               <div className="flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary shadow-inner">
                 <UploadCloud className="size-7" />
               </div>
-              <div>
+              <div className="space-y-1">
                 <p className="font-semibold text-sm text-foreground">
-                  Kéo và thả tệp dữ liệu vào đây, hoặc click để chọn
+                  Kéo và thả tệp dữ liệu vào đây, hoặc click để duyệt tệp
                 </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Hệ thống sẽ kiểm tra lỗi và mở Trợ Lý Sửa Lỗi Tương Tác ngay sau khi quét
+                <p className="text-xs text-muted-foreground">
+                  Tối đa 50MB • Tự động nhận diện cấu trúc, nhiều Sheet & nhiều Bảng
                 </p>
               </div>
 
-              <div className="flex gap-2 mt-2">
-                <Badge variant="outline" className="text-xs">
-                  .xlsx (Nhiều Sheet / Nhiều Bảng)
+              <div className="flex gap-2 pt-1">
+                <Badge variant="outline" className="text-[11px] font-medium bg-background">
+                  .xlsx (Nhiều Sheet)
                 </Badge>
-                <Badge variant="outline" className="text-xs">
+                <Badge variant="outline" className="text-[11px] font-medium bg-background">
                   .xls
                 </Badge>
-                <Badge variant="outline" className="text-xs">
+                <Badge variant="outline" className="text-[11px] font-medium bg-background">
                   .csv
                 </Badge>
               </div>
             </div>
-
-            {isInspecting && (
-              <div className="flex items-center justify-center gap-3 p-4 rounded-xl border bg-muted/30">
-                <div className="size-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                <p className="text-xs font-medium text-foreground">
-                  Đang quét và kiểm tra lỗi tệp Excel...
-                </p>
-              </div>
-            )}
           </div>
         )}
 
         {/* ============================================================ */}
-        {/* STEP 2: BÁO CÁO PHÁT HIỆN LỖI (DETECTION & HEALTH REPORT)   */}
+        {/* VIEW 2: LOADING / SCANNING                                   */}
         {/* ============================================================ */}
-        {currentStep === "detect_report" && inspection && currentSheet && (
-          <div className="flex flex-col h-full overflow-hidden">
-            <div className="p-6 border-b bg-muted/20 shrink-0">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
-                    <AlertCircle className="size-5 text-amber-500" />
-                    Báo Cáo Phát Hiện Lỗi & Cấu Trúc Tệp
-                  </h3>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Tệp: <strong>{inspection.filename}</strong> ({formatFileSize(file?.size || 0)}) • {inspection.total_sheets} Sheet
-                  </p>
-                </div>
-
-                {sheetIssuesSummary.totalIssues > 0 ? (
-                  <Badge variant="secondary" className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 text-xs px-3 py-1 gap-1.5 font-semibold">
-                    <AlertTriangle className="size-3.5" /> Phát Hiện {sheetIssuesSummary.totalIssues} Vấn Đề Cần Xử Lý
-                  </Badge>
-                ) : (
-                  <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-xs px-3 py-1 gap-1.5 font-semibold">
-                    <CheckCircle2 className="size-3.5" /> Dữ Liệu Hoàn Hảo (Không có lỗi)
-                  </Badge>
-                )}
-              </div>
-
-              {/* Sheet tabs if multiple */}
-              {inspection.sheets.length > 1 && (
-                <div className="flex items-center gap-2 mt-4 overflow-x-auto pb-1">
-                  <span className="text-xs font-semibold text-muted-foreground shrink-0">Chọn Sheet kiểm tra:</span>
-                  {inspection.sheets.map((s) => (
-                    <button
-                      key={s.name}
-                      onClick={() => setSelectedSheetName(s.name)}
-                      className={`px-3 py-1 rounded-lg text-xs font-medium border transition-all shrink-0 ${
-                        s.name === currentSheet.name
-                          ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                          : "bg-background hover:bg-muted text-muted-foreground border-border"
-                      }`}
-                    >
-                      {s.name} ({s.row_count} dòng)
-                      {s.missing_summary.total_missing > 0 && (
-                        <span className="ml-1.5 px-1 py-0.2 rounded-full bg-amber-500/20 text-amber-600 text-[10px]">
-                          {s.missing_summary.total_missing} ô thiếu
-                        </span>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Checklist of detected items */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-4">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                Kết Quả Chẩn Đoán Chi Tiết Cho Sheet: <span className="text-foreground">{currentSheet.name}</span>
-              </h4>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* 1. Lỗi thiếu ô / dòng khuyết */}
-                <div className={`p-4 rounded-xl border transition-all ${
-                  currentSheet.missing_summary.total_missing > 0
-                    ? "border-amber-300 bg-amber-50/40 dark:bg-amber-950/20 dark:border-amber-800"
-                    : "border-border bg-card"
-                }`}>
-                  <div className="flex items-start gap-3">
-                    <div className={`flex size-9 items-center justify-center rounded-lg shrink-0 ${
-                      currentSheet.missing_summary.total_missing > 0
-                        ? "bg-amber-500/20 text-amber-600"
-                        : "bg-emerald-500/20 text-emerald-600"
-                    }`}>
-                      {currentSheet.missing_summary.total_missing > 0 ? (
-                        <AlertTriangle className="size-5" />
-                      ) : (
-                        <CheckCircle2 className="size-5" />
-                      )}
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-sm font-bold text-foreground">
-                        {currentSheet.missing_summary.total_missing > 0
-                          ? `Lỗi Ô Dữ Liệu Bị Khuyết (${currentSheet.missing_summary.total_missing} ô)`
-                          : "Dữ Liệu Đầy Đủ (Không thiếu ô)"}
-                      </p>
-                      <p className="text-xs text-muted-foreground leading-relaxed">
-                        {currentSheet.missing_summary.total_missing > 0
-                          ? `Phát hiện ${currentSheet.missing_summary.total_missing} ô bị trống rải rác trên ${currentSheet.missing_summary.affected_rows} dòng bản ghi và ${currentSheet.empty_rows.length} dòng trống hoàn toàn.`
-                          : "Tất cả các dòng bản ghi đều có đầy đủ giá trị, không có ô rỗng."}
-                      </p>
-                      {currentSheet.missing_summary.columns_with_missing.length > 0 && (
-                        <div className="flex flex-wrap gap-1 pt-1.5">
-                          {currentSheet.missing_summary.columns_with_missing.map((c) => (
-                            <Badge key={c.name} variant="outline" className="text-[10px] bg-background">
-                              Cột {c.name}: {c.missing_count} ô
-                            </Badge>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* 2. Tiêu đề cột (Header) */}
-                <div className={`p-4 rounded-xl border transition-all ${
-                  !currentSheet.has_header
-                    ? "border-amber-300 bg-amber-50/40 dark:bg-amber-950/20 dark:border-amber-800"
-                    : "border-border bg-card"
-                }`}>
-                  <div className="flex items-start gap-3">
-                    <div className={`flex size-9 items-center justify-center rounded-lg shrink-0 ${
-                      !currentSheet.has_header
-                        ? "bg-amber-500/20 text-amber-600"
-                        : "bg-emerald-500/20 text-emerald-600"
-                    }`}>
-                      {!currentSheet.has_header ? (
-                        <Type className="size-5" />
-                      ) : (
-                        <CheckCircle2 className="size-5" />
-                      )}
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-sm font-bold text-foreground">
-                        {!currentSheet.has_header
-                          ? "Chưa Có Tiêu Đề Cột (No Header)"
-                          : "Tiêu Đề Cột Đã Hợp Lệ"}
-                      </p>
-                      <p className="text-xs text-muted-foreground leading-relaxed">
-                        {!currentSheet.has_header
-                          ? "Hàng đầu tiên là số liệu/ngày tháng thực tế, chưa có tên thuộc tính. AI đã chuẩn bị các câu hỏi & gợi ý để bạn chọn tên cột."
-                          : `Đã nhận diện hàng tiêu đề chuẩn với ${currentSheet.column_count} cột thuộc tính.`}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 3. Đa Sheet */}
-                <div className="p-4 rounded-xl border bg-card">
-                  <div className="flex items-start gap-3">
-                    <div className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0">
-                      <Layers className="size-5" />
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-sm font-bold text-foreground">
-                        {inspection.total_sheets > 1
-                          ? `Tệp Có ${inspection.total_sheets} Sheet Khác Nhau`
-                          : "Tệp Có 1 Sheet Duy Nhất"}
-                      </p>
-                      <p className="text-xs text-muted-foreground leading-relaxed">
-                        {inspection.total_sheets > 1
-                          ? `Workbook chứa các sheet: ${inspection.sheets.map((s) => s.name).join(", ")}. Bạn có thể chọn sheet mong muốn.`
-                          : "Định dạng bảng tính chuẩn một sheet."}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 4. Nhiều bảng trong 1 sheet */}
-                <div className={`p-4 rounded-xl border transition-all ${
-                  currentSheet.is_multi_table
-                    ? "border-purple-300 bg-purple-50/40 dark:bg-purple-950/20 dark:border-purple-800"
-                    : "border-border bg-card"
-                }`}>
-                  <div className="flex items-start gap-3">
-                    <div className={`flex size-9 items-center justify-center rounded-lg shrink-0 ${
-                      currentSheet.is_multi_table
-                        ? "bg-purple-500/20 text-purple-600"
-                        : "bg-emerald-500/20 text-emerald-600"
-                    }`}>
-                      <TableIcon className="size-5" />
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-sm font-bold text-foreground">
-                        {currentSheet.is_multi_table
-                          ? `Phát Hiện ${currentSheet.table_regions.length} Bảng Riêng Biệt Trong Sheet`
-                          : "Bố Cục Bảng Đơn (Một bảng trong sheet)"}
-                      </p>
-                      <p className="text-xs text-muted-foreground leading-relaxed">
-                        {currentSheet.is_multi_table
-                          ? `Sheet chứa các bảng độc lập (ví dụ: Doanh thu Miền Bắc và Miền Nam). Hệ thống đã bóc tách từng vùng để bạn chọn.`
-                          : "Bảng dữ liệu chiếm trọn vẹn worksheet."}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Bottom Actions for Step 2 */}
-            <div className="border-t bg-card px-6 py-4 flex items-center justify-between shrink-0">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleUploadOriginal}
-                disabled={isSaving}
-                className="text-xs"
-              >
-                Tải Lên Tệp Gốc (Bỏ qua sửa lỗi)
-              </Button>
-
-              <div className="flex items-center gap-2.5">
-                <Button
-                  size="sm"
-                  onClick={() => setCurrentStep("fixing")}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs h-9 px-4 gap-2 shadow-sm"
-                >
-                  <Wand2 className="size-4" />
-                  Bắt Đầu Nghiệp Vụ Sửa Lỗi File Excel
-                  <ArrowRight className="size-4" />
-                </Button>
-              </div>
+        {file && isInspecting && (
+          <div className="flex-1 flex flex-col items-center justify-center p-8 space-y-4">
+            <div className="size-12 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+            <div className="text-center space-y-1">
+              <p className="font-semibold text-base text-foreground">
+                Đang quét cấu trúc tệp "{file.name}"...
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Đang kiểm tra tiêu đề, dòng rỗng và các bảng dữ liệu
+              </p>
             </div>
           </div>
         )}
 
         {/* ============================================================ */}
-        {/* STEP 3: NGHIỆP VỤ SỬA LỖI FILE EXCEL                        */}
+        {/* VIEW 3: MAIN WORKFLOW                                        */}
         {/* ============================================================ */}
-        {currentStep === "fixing" && inspection && currentSheet && (
-          <div className="flex flex-col h-full overflow-hidden">
-            {/* Sheet & Sub-table bar */}
-            <div className="border-b bg-muted/20 px-6 py-3 space-y-2.5 shrink-0">
-              <div className="flex items-center justify-between">
+        {file && !isInspecting && inspection && currentSheet && (
+          <>
+            {/* 1. MODAL HEADER (LOCKED AT TOP) */}
+            <div className="shrink-0 flex-shrink-0 px-6 py-4 border-b border-border bg-card flex items-start justify-between">
+              <div className="space-y-1 min-w-0 pr-4">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold text-foreground">Đang xử lý Sheet:</span>
-                  <Badge variant="outline" className="font-semibold text-xs bg-background">
-                    {currentSheet.name}
-                  </Badge>
-                  {selectedTableId && (
-                    <Badge className="bg-purple-500/15 text-purple-700 dark:text-purple-300 text-xs font-semibold">
-                      Bảng: {selectedTableId}
+                  <FileSpreadsheet className="size-5 text-primary shrink-0" />
+                  <h2 className="text-base font-bold text-foreground truncate">
+                    {file.name}
+                  </h2>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <span>{formatFileSize(file.size)}</span>
+                  <span>•</span>
+                  <span>{inspection.sheets.length} sheets</span>
+                  <span>•</span>
+                  {stats.invalidSheetsCount > 0 ? (
+                    <span className="text-destructive font-semibold flex items-center gap-1">
+                      <AlertCircle className="size-3.5" />
+                      {stats.invalidSheetsCount} sheet cần tự hiệu chỉnh trong Excel
+                    </span>
+                  ) : (
+                    <span className="text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
+                      <CheckCircle2 className="size-3.5" />
+                      Tất cả sheet hợp lệ
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => onOpenChange(false)}
+                className="text-muted-foreground hover:text-foreground p-1 rounded-md transition-colors"
+                title="Đóng"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+
+            {/* 2. SHEET NAVIGATION TABS (HORIZONTAL BAR) */}
+            <div className="shrink-0 flex-shrink-0 px-6 pt-2 bg-muted/20 border-b border-border flex items-center gap-1 overflow-x-auto no-scrollbar">
+              {inspection.sheets.map((s) => {
+                const isActive = s.name === currentSheet.name
+                const hasHeaderErr = !s.has_header && !s.is_empty
+                const hasMissingErr = (s.missing_summary?.affected_rows || 0) > 0
+                const hasAnyErr = hasHeaderErr || hasMissingErr
+                const isStatusSkipped = sheetStatuses[s.name]?.skipSheet
+
+                return (
+                  <button
+                    key={s.name}
+                    type="button"
+                    onClick={() => setSelectedSheetName(s.name)}
+                    className={`px-3.5 py-2.5 text-xs sm:text-sm font-medium transition-all border-b-2 flex items-center gap-2 whitespace-nowrap rounded-t-md ${
+                      isActive
+                        ? "border-primary text-primary font-semibold bg-background shadow-xs"
+                        : "border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                    } ${isStatusSkipped ? "opacity-60 line-through" : ""}`}
+                  >
+                    {hasAnyErr ? (
+                      <span className="size-2 rounded-full bg-destructive shrink-0" title="Cần tự sửa trong Excel" />
+                    ) : (
+                      <CheckCircle2 className="size-3.5 text-emerald-500 shrink-0" />
+                    )}
+                    <span>{s.name}</span>
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* 3. MAIN BODY (SINGLE UNIFIED SCROLLBAR) */}
+            <div className="flex-1 overflow-y-auto px-6 sm:px-8 py-6 space-y-6 bg-background">
+              {/* SECTION A: THÔNG BÁO TÌNH TRẠNG DỮ LIỆU & HƯỚNG DẪN TỰ HIỆU CHỈNH */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                    TÌNH TRẠNG DỮ LIỆU (TỰ HIỆU CHỈNH TRONG EXCEL)
+                  </h3>
+                  {activeSheetHasAnyError ? (
+                    <Badge variant="destructive" className="text-[11px] font-medium">
+                      Chưa thể tải lên • Cần hiệu chỉnh file
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-emerald-600 bg-emerald-500/10 border-emerald-200 text-[11px]">
+                      <Check className="size-3 mr-1" /> Hợp lệ để tải lên
                     </Badge>
                   )}
                 </div>
 
-                <div className="flex items-center gap-2 text-xs">
-                  <span className="text-muted-foreground">Còn <strong>{remainingMissingCount}</strong> ô trống</span>
-                  <span>•</span>
-                  <span className="text-muted-foreground">Đã sửa <strong>{Object.keys(columnRenames).length}</strong> tên cột</span>
-                </div>
-              </div>
-
-              {/* Multi-table selector if applicable */}
-              {currentSheet.is_multi_table && currentSheet.table_regions.length > 1 && (
-                <div className="flex items-center gap-2 p-2 rounded-lg bg-purple-500/10 border border-purple-500/20 text-xs">
-                  <TableIcon className="size-3.5 text-purple-600 shrink-0" />
-                  <span className="font-semibold text-purple-900 dark:text-purple-200 shrink-0">
-                    Chọn bảng cần sửa:
-                  </span>
-                  <div className="flex items-center gap-1.5 overflow-x-auto">
-                    {currentSheet.table_regions.map((reg, idx) => (
-                      <button
-                        key={reg.table_id}
-                        type="button"
-                        onClick={() => setSelectedTableId(reg.table_id)}
-                        className={`px-2.5 py-0.5 rounded text-xs font-medium transition-colors ${
-                          selectedTableId === reg.table_id
-                            ? "bg-purple-600 text-white shadow-sm"
-                            : "bg-background hover:bg-muted text-muted-foreground border"
-                        }`}
-                      >
-                        Bảng {idx + 1} ({reg.range})
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Sub-tabs between Header fixing and Missing cell fixing */}
-              <Tabs value={fixSubTab} onValueChange={(v) => setFixSubTab(v as any)} className="w-full">
-                <TabsList className="grid w-full max-w-md grid-cols-2 h-8">
-                  <TabsTrigger value="headers" className="text-xs font-semibold gap-1.5">
-                    <Type className="size-3.5" />
-                    Đặt Tên Tiêu Đề Cột
-                    {!currentSheet.has_header && (
-                      <span className="size-1.5 rounded-full bg-amber-500" />
-                    )}
-                  </TabsTrigger>
-                  <TabsTrigger value="cleaning" className="text-xs font-semibold gap-1.5">
-                    <Wand2 className="size-3.5" />
-                    Sửa Ô Thiếu & Dữ Liệu ({remainingMissingCount})
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
-            </div>
-
-            {/* Sub-tab 1: Header resolution */}
-            <div className="flex-1 overflow-y-auto p-6 bg-muted/10 min-h-0">
-              {fixSubTab === "headers" && (
-                <div className="space-y-4 max-w-4xl mx-auto">
-                  {!currentSheet.has_header && (
-                    <div className="p-3.5 rounded-xl border border-amber-300 bg-amber-500/10 text-amber-900 dark:text-amber-200 text-xs flex items-center gap-2.5">
-                      <Sparkles className="size-4 shrink-0 text-amber-600" />
-                      <span>
-                        AI đã phân tích dữ liệu thực tế và chuẩn bị sẵn các câu hỏi / gợi ý bên dưới. Bấm vào nút màu tím để đổi tên cột chỉ với 1 cú click!
-                      </span>
-                    </div>
-                  )}
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                    {currentSheet.columns.map((col, idx) => {
-                      const currentName = columnRenames[col.name] || col.name
-                      const isRenamed = columnRenames[col.name] !== undefined
-                      return (
-                        <div
-                          key={col.name || idx}
-                          className={`p-4 rounded-xl border bg-card space-y-2.5 ${
-                            isRenamed ? "border-primary/50 shadow-sm" : ""
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <span className="flex size-5 items-center justify-center rounded-full bg-muted font-mono text-[10px] text-muted-foreground">
-                                {idx + 1}
-                              </span>
-                              <Badge variant="secondary" className="text-xs font-medium">
-                                {col.type_category}
-                              </Badge>
-                            </div>
-                            <Badge variant="outline" className="text-[10px] font-mono">
-                              {col.dtype}
-                            </Badge>
-                          </div>
-
-                          <div>
-                            <Label className="text-xs text-muted-foreground">Tên cột:</Label>
-                            <Input
-                              value={currentName}
-                              onChange={(e) => {
-                                const val = e.target.value
-                                setColumnRenames((prev) => ({
-                                  ...prev,
-                                  [col.name]: val,
-                                }))
-                              }}
-                              placeholder={`Tên cột ${idx + 1}`}
-                              className="h-8 text-xs font-semibold mt-1"
-                            />
-                          </div>
-
-                          {/* Smart suggestions */}
-                          {col.suggestions && col.suggestions.length > 0 && (
-                            <div className="space-y-1.5 pt-1 border-t border-border/50">
-                              <span className="text-[11px] font-medium text-purple-600 dark:text-purple-400 flex items-center gap-1">
-                                <Sparkles className="size-3" /> Gợi ý đoán cột này:
-                              </span>
-                              <div className="flex flex-wrap gap-1">
-                                {col.suggestions.map((sug: string) => (
-                                  <button
-                                    key={sug}
-                                    type="button"
-                                    onClick={() => applyColumnSuggestion(col.name, sug)}
-                                    className={`px-2 py-0.5 rounded text-[11px] font-medium transition-all ${
-                                      currentName.toLowerCase() === sug.toLowerCase()
-                                        ? "bg-purple-600 text-white font-semibold"
-                                        : "bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 dark:text-purple-300 border border-purple-500/20"
-                                    }`}
-                                  >
-                                    + {sug}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          <p className="text-[11px] text-muted-foreground truncate">
-                            Mẫu: {col.sample_values?.join(", ") || "(trống)"}
-                          </p>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Sub-tab 2: Missing cells correction */}
-              {fixSubTab === "cleaning" && (
-                <div className="space-y-5 max-w-4xl mx-auto">
-                  {/* Quick tools */}
-                  <div className="p-4 rounded-xl border bg-card space-y-3">
-                    <h4 className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                      <Wand2 className="size-4 text-primary" />
-                      Công cụ điền nhanh cho các cột bị khuyết
-                    </h4>
-
-                    {currentSheet.missing_summary.columns_with_missing.length === 0 ? (
-                      <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
-                        <CheckCircle2 className="size-4" /> Tuyệt vời! Không có ô nào bị thiếu dữ liệu.
+                {/* 1. Header Validation Notice */}
+                {!activeSheetHasHeaderError ? (
+                  <div className="flex items-start gap-3 p-3.5 rounded-xl border border-emerald-200/80 dark:border-emerald-900/60 bg-emerald-50/40 dark:bg-emerald-950/20 text-emerald-900 dark:text-emerald-200">
+                    <CheckCircle2 className="size-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                    <div className="text-xs space-y-0.5">
+                      <p className="font-semibold text-sm">Tiêu đề cột hợp lệ</p>
+                      <p className="text-muted-foreground">
+                        Đã nhận diện đủ {currentSheet.columns.length} tên cột:{" "}
+                        <span className="font-mono text-foreground font-medium">
+                          {currentSheet.columns.map((c) => c.name).slice(0, 6).join(", ")}
+                          {currentSheet.columns.length > 6 ? "..." : ""}
+                        </span>
                       </p>
-                    ) : (
-                      <div className="space-y-2.5">
-                        {currentSheet.missing_summary.columns_with_missing.map((col) => {
-                          const colName = columnRenames[col.name] || col.name
-                          const activeFill = columnFills[col.name]
-                          return (
-                            <div
-                              key={col.name}
-                              className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-lg border bg-muted/20 text-xs"
-                            >
-                              <div className="flex items-center gap-2">
-                                <span className="font-semibold text-foreground">{colName}</span>
-                                <Badge variant="secondary" className="text-[10px]">
-                                  {col.missing_count} ô trống ({col.missing_percentage}%)
-                                </Badge>
-                                {activeFill && (
-                                  <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 text-[10px] gap-1">
-                                    <Check className="size-3" /> Đã chọn điền: {String(activeFill)}
-                                  </Badge>
-                                )}
-                              </div>
-
-                              <div className="flex flex-wrap items-center gap-1.5">
-                                {col.fill_suggestions?.mean !== undefined && (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="h-7 text-xs font-medium"
-                                    onClick={() => applyColumnFill(col.name, "mean", `TB: ${col.fill_suggestions?.mean}`)}
-                                  >
-                                    Điền TB ({col.fill_suggestions?.mean.toLocaleString()})
-                                  </Button>
-                                )}
-                                {col.fill_suggestions?.median !== undefined && (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="h-7 text-xs font-medium"
-                                    onClick={() => applyColumnFill(col.name, "median", `Trung vị: ${col.fill_suggestions?.median}`)}
-                                  >
-                                    Điền Trung Vị ({col.fill_suggestions?.median.toLocaleString()})
-                                  </Button>
-                                )}
-                                {col.fill_suggestions?.mode !== undefined && (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="h-7 text-xs font-medium"
-                                    onClick={() => applyColumnFill(col.name, "mode", String(col.fill_suggestions?.mode))}
-                                  >
-                                    Điền '{col.fill_suggestions?.mode}'
-                                  </Button>
-                                )}
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-7 text-xs font-medium"
-                                  onClick={() => applyColumnFill(col.name, "placeholder", "Chưa xác định")}
-                                >
-                                  Điền 'Chưa xác định'
-                                </Button>
-                              </div>
-                            </div>
-                          )
-                        })}
-
-                        <div className="pt-2 border-t flex items-center gap-4 text-xs">
-                          <label className="flex items-center gap-2 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={dropEmptyRows}
-                              onChange={(e) => setDropEmptyRows(e.target.checked)}
-                              className="rounded border-gray-300 text-primary"
-                            />
-                            <span>Xóa các dòng hoàn toàn rỗng ({currentSheet.empty_rows.length} dòng)</span>
-                          </label>
-
-                          <label className="flex items-center gap-2 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={dropAnyMissingRows}
-                              onChange={(e) => setDropAnyMissingRows(e.target.checked)}
-                              className="rounded border-gray-300 text-primary"
-                            />
-                            <span>Xóa tất cả dòng chứa ô trống</span>
-                          </label>
-                        </div>
-                      </div>
-                    )}
+                    </div>
                   </div>
-
-                  {/* Manual cell edit table */}
-                  {currentSheet.missing_cells.length > 0 && (
-                    <div className="space-y-2.5">
-                      <h4 className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                        <Edit3 className="size-4 text-amber-600" />
-                        Chỉnh sửa trực tiếp từng ô dữ liệu bị thiếu
-                      </h4>
-
-                      <div className="border rounded-xl bg-card overflow-hidden">
-                        <Table>
-                          <TableHeader className="bg-muted/40">
-                            <TableRow>
-                              <TableHead className="w-16 text-center text-xs">Dòng</TableHead>
-                              <TableHead className="text-xs">Cột Bị Thiếu</TableHead>
-                              <TableHead className="text-xs">Giá Trị Sửa Lỗi</TableHead>
-                              <TableHead className="text-xs">Ngữ Cảnh Dòng Dữ Liệu</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {currentSheet.missing_cells.map((cell, idx) => {
-                              const key = `${cell.row_index}_${cell.column_name}`
-                              const editedVal = cellFixes[key] || ""
-                              const hasColumnFill = columnFills[cell.column_name] !== undefined
-                              return (
-                                <TableRow key={`${cell.row_index}_${cell.column_index}_${idx}`}>
-                                  <TableCell className="text-center font-mono text-xs text-muted-foreground font-semibold">
-                                    #{cell.row_index + 1}
-                                  </TableCell>
-                                  <TableCell className="font-semibold text-xs text-foreground">
-                                    {columnRenames[cell.column_name] || cell.column_name}
-                                  </TableCell>
-                                  <TableCell>
-                                    <Input
-                                      value={editedVal}
-                                      onChange={(e) => handleCellEdit(cell.row_index, cell.column_name, e.target.value)}
-                                      placeholder={hasColumnFill ? `[Tự điền: ${columnFills[cell.column_name]}]` : "Gõ giá trị..."}
-                                      className="h-7 text-xs font-medium w-44 bg-amber-50/50 dark:bg-amber-950/20 border-amber-300"
-                                    />
-                                  </TableCell>
-                                  <TableCell className="text-xs text-muted-foreground">
-                                    <div className="flex flex-wrap gap-1 max-w-md">
-                                      {cell.row_context &&
-                                        Object.entries(cell.row_context).slice(0, 3).map(([k, v]) => (
-                                          <span key={k} className="bg-muted px-1.5 py-0.5 rounded text-[10px]">
-                                            {k}: <strong>{String(v)}</strong>
-                                          </span>
-                                        ))}
-                                    </div>
-                                  </TableCell>
-                                </TableRow>
-                              )
-                            })}
-                          </TableBody>
-                        </Table>
+                ) : (
+                  <div className="flex items-start gap-3 p-4 rounded-xl border border-destructive/40 bg-destructive/5 text-destructive">
+                    <AlertCircle className="size-5 shrink-0 mt-0.5 text-destructive" />
+                    <div className="space-y-1.5 text-xs">
+                      <div className="flex items-center gap-2">
+                        <p className="font-bold text-sm text-destructive">
+                          Thiếu dòng tiêu đề cột (Header)
+                        </p>
+                        <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+                          Bắt buộc sửa
+                        </Badge>
                       </div>
+                      <p className="text-foreground/90 leading-relaxed">
+                        Bảng tính bắt đầu trực tiếp bằng các hàng số liệu hoặc tiêu đề bị khuyết thiếu. Hệ thống không tự ý gán tên cột mặc định để tránh làm sai lệch ngữ nghĩa số liệu.
+                      </p>
+                      <p className="font-semibold text-destructive mt-1">
+                        📌 Hướng dẫn xử lý: Vui lòng mở file Excel, thêm một dòng tiêu đề ở hàng đầu tiên của sheet "{currentSheet.name}" rồi lưu và tải lại tệp. Nếu không bổ sung, sheet này sẽ không được phép tải lên.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* 2. Missing Data Validation Notice */}
+                {!activeSheetHasMissingData ? (
+                  <div className="flex items-start gap-3 p-3.5 rounded-xl border border-emerald-200/80 dark:border-emerald-900/60 bg-emerald-50/40 dark:bg-emerald-950/20 text-emerald-900 dark:text-emerald-200">
+                    <CheckCircle2 className="size-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                    <div className="text-xs space-y-0.5">
+                      <p className="font-semibold text-sm">Dữ liệu đầy đủ và nguyên vẹn</p>
+                      <p className="text-muted-foreground">
+                        Không phát hiện ô trống hoặc dòng rỗng nào trong sheet này.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-start gap-3 p-4 rounded-xl border border-destructive/40 bg-destructive/5 text-destructive">
+                    <AlertCircle className="size-5 shrink-0 mt-0.5 text-destructive" />
+                    <div className="space-y-2 text-xs w-full">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <p className="font-bold text-sm text-destructive">
+                            Phát hiện {currentSheet.missing_summary.affected_rows} dòng chứa dữ liệu rỗng
+                          </p>
+                          <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+                            Bắt buộc sửa
+                          </Badge>
+                        </div>
+                        <span className="font-mono text-[11px] text-muted-foreground">
+                          {currentSheet.missing_summary.total_missing} ô trống
+                        </span>
+                      </div>
+
+                      <p className="text-foreground/90 leading-relaxed">
+                        Các cột bị khuyết thiếu:{" "}
+                        <strong className="text-destructive font-semibold">
+                          {currentSheet.missing_summary.columns_with_missing.map((c) => c.name).join(", ")}
+                        </strong>.
+                      </p>
+                      <p className="font-semibold text-destructive">
+                        📌 Hướng dẫn xử lý: Vui lòng mở file Excel, tự điền dữ liệu bổ sung vào các ô thiếu hoặc xóa hẳn các dòng trống này rồi lưu và tải lại tệp. Nếu không hiệu chỉnh, sheet này sẽ không được phép tải lên.
+                      </p>
+
+                      {/* Detailed table of missing cells to guide user in Excel */}
+                      {currentSheet.missing_cells && currentSheet.missing_cells.length > 0 && (
+                        <div className="mt-2 pt-2 border-t border-destructive/20 space-y-1.5">
+                          <p className="text-[11px] font-semibold text-foreground">
+                            Vị trí cụ thể các ô cần hiệu chỉnh trong Excel:
+                          </p>
+                          <div className="max-h-40 overflow-y-auto rounded-lg border border-border bg-background p-1">
+                            <table className="w-full text-left text-[11px]">
+                              <thead>
+                                <tr className="border-b text-muted-foreground">
+                                  <th className="py-1 px-2 font-medium">Vị trí dòng</th>
+                                  <th className="py-1 px-2 font-medium">Cột bị trống</th>
+                                  <th className="py-1 px-2 font-medium">Ngữ cảnh dòng</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {currentSheet.missing_cells.slice(0, 15).map((mc, mIdx) => (
+                                  <tr key={mIdx} className="border-b last:border-0 hover:bg-muted/30">
+                                    <td className="py-1 px-2 font-mono text-destructive font-semibold">
+                                      Dòng {mc.row_index + (typeof currentSheet.header_row_index === "number" ? currentSheet.header_row_index + 2 : 1)}
+                                    </td>
+                                    <td className="py-1 px-2 font-medium text-foreground">
+                                      {mc.column_name}
+                                    </td>
+                                    <td className="py-1 px-2 text-muted-foreground font-mono truncate max-w-[240px]">
+                                      {Object.entries(mc.row_context || {}).map(([k, v]) => `${k}: ${v}`).join(", ") || "(dòng trống)"}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                            {currentSheet.missing_cells.length > 15 && (
+                              <p className="text-[10px] text-muted-foreground text-center py-1 font-medium">
+                                ... và còn {currentSheet.missing_cells.length - 15} ô trống khác
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <hr className="border-border/60" />
+
+              {/* SECTION B: HỖ TRỢ GỘP VÀ TÁCH (TÍNH NĂNG XỬ LÝ DUY NHẤT) */}
+              <div className="space-y-4">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  HỖ TRỢ GỘP VÀ TÁCH DỮ LIỆU
+                </h3>
+
+                <div className="space-y-3">
+                  {/* Case 1: Multi-sheet mergeable group */}
+                  {mergeGroup && (
+                    <div className="p-4 rounded-xl border border-border bg-muted/10 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Layers className="size-4 text-primary" />
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">
+                          Gộp & Tách Các Sheet Cùng Cấu Trúc
+                        </h4>
+                      </div>
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        Phát hiện <strong>{mergeGroup.sheet_names.length} sheet</strong> có cùng cấu trúc ({mergeGroup.column_count} cột):{" "}
+                        <span className="font-mono text-foreground font-medium">
+                          {mergeGroup.sheet_names.join(", ")}
+                        </span>.
+                      </p>
+
+                      <div className="space-y-2 pt-1">
+                        {/* Option: Split */}
+                        <label className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                          multiSheetAction === "split"
+                            ? "border-primary/60 bg-primary/5"
+                            : "border-border hover:bg-muted/40"
+                        }`}>
+                          <input
+                            type="radio"
+                            name="multi_sheet_action"
+                            checked={multiSheetAction === "split"}
+                            onChange={() => setMultiSheetAction("split")}
+                            className="mt-0.5 size-4 accent-primary"
+                          />
+                          <div className="text-xs leading-snug">
+                            <span className="font-semibold text-foreground">
+                              Tách riêng (Lưu mỗi sheet thành một tập dữ liệu độc lập)
+                            </span>
+                            <span className="text-muted-foreground ml-1.5">(Mặc định an toàn)</span>
+                          </div>
+                        </label>
+
+                        {/* Option: Merge */}
+                        <label className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                          multiSheetAction === "merge"
+                            ? "border-primary/60 bg-primary/5"
+                            : "border-border hover:bg-muted/40"
+                        }`}>
+                          <input
+                            type="radio"
+                            name="multi_sheet_action"
+                            checked={multiSheetAction === "merge"}
+                            onChange={() => setMultiSheetAction("merge")}
+                            className="mt-0.5 size-4 accent-primary"
+                          />
+                          <div className="text-xs leading-snug">
+                            <span className="font-semibold text-foreground">
+                              Gộp các sheet lại thành một tập dữ liệu duy nhất
+                            </span>
+                            <span className="text-muted-foreground ml-1.5">
+                              (Tự động gộp dữ liệu và đánh dấu nguồn gốc từng sheet)
+                            </span>
+                          </div>
+                        </label>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Case 2: Multi-table inside current sheet */}
+                  {currentSheet.is_multi_table && (
+                    <div className="p-4 rounded-xl border border-border bg-muted/10 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <TableIcon className="size-4 text-primary" />
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">
+                          Gộp & Tách Các Bảng Trong Sheet Này
+                        </h4>
+                      </div>
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        Sheet "{currentSheet.name}" chứa <strong>{currentSheet.table_regions.length} bảng dữ liệu riêng biệt</strong>.
+                      </p>
+
+                      <div className="space-y-2 pt-1">
+                        {/* Option: Split tables */}
+                        <label className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                          currentStatus.tableAction === "split_tables"
+                            ? "border-primary/60 bg-primary/5"
+                            : "border-border hover:bg-muted/40"
+                        }`}>
+                          <input
+                            type="radio"
+                            name={`table_action_${currentSheet.name}`}
+                            checked={currentStatus.tableAction === "split_tables"}
+                            onChange={() => updateCurrentStatus({ tableAction: "split_tables" })}
+                            className="mt-0.5 size-4 accent-primary"
+                          />
+                          <div className="text-xs leading-snug">
+                            <span className="font-semibold text-foreground">
+                              Tách thành các tập dữ liệu riêng biệt
+                            </span>
+                            <span className="text-muted-foreground ml-1.5">
+                              (Khuyến nghị: Mỗi bảng lưu thành một tệp dữ liệu độc lập)
+                            </span>
+                          </div>
+                        </label>
+
+                        {/* Option: Merge tables */}
+                        <label className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                          currentStatus.tableAction === "merge_tables"
+                            ? "border-primary/60 bg-primary/5"
+                            : "border-border hover:bg-muted/40"
+                        }`}>
+                          <input
+                            type="radio"
+                            name={`table_action_${currentSheet.name}`}
+                            checked={currentStatus.tableAction === "merge_tables"}
+                            onChange={() => updateCurrentStatus({ tableAction: "merge_tables" })}
+                            className="mt-0.5 size-4 accent-primary"
+                          />
+                          <div className="text-xs leading-snug">
+                            <span className="font-semibold text-foreground">
+                              Gộp {currentSheet.table_regions.length} bảng này lại thành một tập dữ liệu chung
+                            </span>
+                          </div>
+                        </label>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Case 3: Skip sheet option */}
+                  <label className="flex items-start gap-3 p-3.5 rounded-xl border border-dashed border-border/80 hover:bg-muted/20 cursor-pointer transition-colors">
+                    <Checkbox
+                      checked={currentStatus.skipSheet}
+                      onCheckedChange={(checked) =>
+                        updateCurrentStatus({ skipSheet: Boolean(checked) })
+                      }
+                      className="mt-0.5"
+                    />
+                    <div className="text-xs space-y-0.5">
+                      <p className="font-medium text-foreground">
+                        Bỏ qua sheet "{currentSheet.name}"
+                      </p>
+                      <p className="text-muted-foreground">
+                        Không lưu sheet này vào kho dữ liệu khi tải lên.
+                      </p>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              {/* SECTION C: COLLAPSIBLE SAMPLE PREVIEW */}
+              {currentSheet.sample_data && currentSheet.sample_data.length > 0 && (
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowPreview(!showPreview)}
+                    className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 font-medium transition-colors"
+                  >
+                    <TableIcon className="size-3.5" />
+                    {showPreview ? "Thu gọn xem trước dữ liệu" : "Xem trước dữ liệu mẫu (15 dòng đầu)"}
+                    {showPreview ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
+                  </button>
+
+                  {showPreview && (
+                    <div className="mt-2.5 rounded-xl border border-border overflow-x-auto max-h-56">
+                      <Table className="text-xs">
+                        <TableHeader className="bg-muted/50">
+                          <TableRow>
+                            {currentSheet.columns.map((col, idx) => (
+                              <TableHead key={idx} className="font-semibold text-foreground px-3 py-2 whitespace-nowrap">
+                                {col.name}
+                              </TableHead>
+                            ))}
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {currentSheet.sample_data.slice(0, 10).map((row, rIdx) => (
+                            <TableRow key={rIdx} className="hover:bg-muted/20">
+                              {currentSheet.columns.map((col, cIdx) => (
+                                <TableCell key={cIdx} className="px-3 py-1.5 font-mono text-[11px] text-muted-foreground whitespace-nowrap">
+                                  {String(row[col.name] ?? "")}
+                                </TableCell>
+                              ))}
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
                     </div>
                   )}
                 </div>
               )}
             </div>
 
-            {/* Step 3 Footer */}
-            <div className="border-t bg-card px-6 py-3.5 flex items-center justify-between shrink-0">
+            {/* 4. MODAL FOOTER (LOCKED AT BOTTOM) */}
+            <div className="shrink-0 flex-shrink-0 px-6 py-4 border-t border-border bg-card flex items-center justify-between">
               <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentStep("detect_report")}
-                className="text-xs gap-1"
+                type="button"
+                variant="ghost"
+                onClick={() => onOpenChange(false)}
+                className="text-muted-foreground hover:text-foreground font-medium"
               >
-                <ArrowLeft className="size-3.5" /> Xem lại báo cáo lỗi
+                Hủy
               </Button>
 
-              <Button
-                size="sm"
-                onClick={() => setCurrentStep("completed")}
-                className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold gap-1.5"
-              >
-                Tiếp Theo: Nghiệm Thu & Tải Lên <ArrowRight className="size-3.5" />
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* ============================================================ */}
-        {/* STEP 4: HOÀN THÀNH & CHO PHÉP TẢI LÊN FILE NÀY             */}
-        {/* ============================================================ */}
-        {currentStep === "completed" && inspection && currentSheet && (
-          <div className="flex flex-col h-full overflow-hidden">
-            <div className="p-6 border-b bg-emerald-500/10 shrink-0">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="flex size-11 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-sm">
-                    <ShieldCheck className="size-6" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold text-foreground flex items-center gap-2">
-                      Nghiệp Vụ Sửa Lỗi Hoàn Tất! Dữ Liệu Đã Đạt Chuẩn 100%
-                    </h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Đã khắc phục toàn bộ vấn đề về tiêu đề cột, ô khuyết thiếu và phân tách bảng.
-                    </p>
-                  </div>
-                </div>
-
-                <Badge className="bg-emerald-600 text-white text-xs px-3 py-1 font-bold">
-                  Sẵn Sàng Tải Lên
-                </Badge>
-              </div>
-
-              {/* Summary stats of fixes */}
-              <div className="grid grid-cols-3 gap-3 mt-4">
-                <div className="p-3 rounded-lg border bg-card text-center">
-                  <p className="text-[11px] text-muted-foreground font-medium">Tên Cột Đã Chuẩn Hóa</p>
-                  <p className="text-base font-bold text-foreground">
-                    {currentSheet.columns.length} <span className="text-xs font-normal text-muted-foreground">cột</span>
-                  </p>
-                </div>
-                <div className="p-3 rounded-lg border bg-card text-center">
-                  <p className="text-[11px] text-muted-foreground font-medium">Ô Thiếu Đã Khắc Phục</p>
-                  <p className="text-base font-bold text-emerald-600 dark:text-emerald-400">
-                    {currentSheet.missing_summary.total_missing - remainingMissingCount} / {currentSheet.missing_summary.total_missing} <span className="text-xs font-normal text-muted-foreground">ô</span>
-                  </p>
-                </div>
-                <div className="p-3 rounded-lg border bg-card text-center">
-                  <p className="text-[11px] text-muted-foreground font-medium">Quy Mô Dữ Liệu</p>
-                  <p className="text-base font-bold text-foreground">
-                    {currentSheet.row_count} <span className="text-xs font-normal text-muted-foreground">dòng</span>
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Data preview */}
-            <div className="flex-1 overflow-y-auto p-6 bg-muted/10">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">
-                Xem Trước Bảng Dữ Liệu Sau Khi Làm Sạch
-              </h4>
-
-              <div className="border rounded-xl bg-card overflow-x-auto max-h-[380px]">
-                <Table>
-                  <TableHeader className="bg-muted/40 sticky top-0 z-10">
-                    <TableRow>
-                      <TableHead className="w-12 text-center text-xs">#</TableHead>
-                      {currentSheet.columns.map((col) => (
-                        <TableHead key={col.name} className="text-xs font-bold whitespace-nowrap text-foreground">
-                          {columnRenames[col.name] || col.name}
-                        </TableHead>
-                      ))}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {currentSheet.sample_data.length > 0 ? (
-                      currentSheet.sample_data.map((row, rIdx) => (
-                        <TableRow key={rIdx}>
-                          <TableCell className="text-center font-mono text-xs text-muted-foreground">
-                            {rIdx + 1}
-                          </TableCell>
-                          {currentSheet.columns.map((col) => {
-                            const key = `${rIdx}_${col.name}`
-                            const isFixed = cellFixes[key] !== undefined
-                            const hasFill = columnFills[col.name] !== undefined
-                            let val = row[col.name]
-                            if (isFixed) {
-                              val = cellFixes[key]
-                            } else if ((val === undefined || val === null || val === "") && hasFill) {
-                              val = `[${columnFills[col.name]}]`
-                            }
-                            return (
-                              <TableCell key={col.name} className="text-xs whitespace-nowrap">
-                                {val !== undefined && val !== null && val !== "" ? (
-                                  <span className={isFixed ? "font-bold text-emerald-600 dark:text-emerald-400" : ""}>
-                                    {String(val)}
-                                  </span>
-                                ) : (
-                                  <span className="text-muted-foreground/40 italic text-[11px]">(trống)</span>
-                                )}
-                              </TableCell>
-                            )
-                          })}
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={currentSheet.columns.length + 1} className="text-center py-6 text-muted-foreground text-xs">
-                          Không có dữ liệu
-                        </TableCell>
-                      </TableRow>
+              <div className="flex items-center gap-3">
+                {!isLastSheet ? (
+                  <>
+                    {stats.invalidSheetsCount > 0 && stats.validSheetsCount > 0 && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleFinalSubmit(true)}
+                        disabled={isSaving}
+                        className="text-xs text-muted-foreground hover:text-foreground hidden sm:inline-flex"
+                      >
+                        Chỉ tải lên {stats.validSheetsCount} sheet hợp lệ
+                      </Button>
                     )}
-                  </TableBody>
-                </Table>
+                    <LoadingButton
+                      type="button"
+                      variant="default"
+                      onClick={handleNextSheet}
+                      loading={isSaving}
+                      className="font-medium"
+                    >
+                      Tiếp tục với sheet sau →
+                    </LoadingButton>
+                  </>
+                ) : (
+                  <>
+                    {stats.invalidSheetsCount > 0 ? (
+                      <div className="flex items-center gap-2">
+                        {stats.validSheetsCount > 0 ? (
+                          <LoadingButton
+                            type="button"
+                            variant="default"
+                            onClick={() => handleFinalSubmit(true)}
+                            loading={isSaving}
+                            className="font-medium"
+                          >
+                            <Check className="size-4 mr-1.5" />
+                            Tải lên {stats.validSheetsCount} sheet hợp lệ
+                          </LoadingButton>
+                        ) : (
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            disabled
+                            className="font-medium cursor-not-allowed opacity-80"
+                          >
+                            <AlertCircle className="size-4 mr-1.5 text-destructive" />
+                            Cần tự sửa lỗi trong Excel để tải lên
+                          </Button>
+                        )}
+                      </div>
+                    ) : (
+                      <LoadingButton
+                        type="button"
+                        variant="default"
+                        onClick={() => handleFinalSubmit(false)}
+                        loading={isSaving}
+                        className="font-medium"
+                      >
+                        <Check className="size-4 mr-1.5" />
+                        Hoàn tất & Tải lên ({inspection.sheets.length} Sheet)
+                      </LoadingButton>
+                    )}
+                  </>
+                )}
               </div>
             </div>
-
-            {/* Bottom Final Action: CHO PHÉP TẢI LÊN FILE NÀY */}
-            <div className="border-t bg-card px-6 py-4 flex items-center justify-between shrink-0">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentStep("fixing")}
-                className="text-xs gap-1"
-              >
-                <ArrowLeft className="size-3.5" /> Sửa lại thiết lập
-              </Button>
-
-              <LoadingButton
-                size="sm"
-                loading={isSaving}
-                disabled={isSaving}
-                onClick={handleSaveDataset}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm h-10 px-5 gap-2 shadow-md"
-              >
-                <FileCheck className="size-4.5" />
-                Hoàn Thành & Tải Lên File Này Ngay
-              </LoadingButton>
-            </div>
-          </div>
+          </>
         )}
       </DialogContent>
     </Dialog>

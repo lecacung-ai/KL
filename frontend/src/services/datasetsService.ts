@@ -84,11 +84,40 @@ export interface SheetInspection {
   sample_data: Array<Record<string, any>>
 }
 
+export interface MergeableSheetGroup {
+  sheet_names: string[]
+  column_count: number
+  columns: string[]
+  suggested_name: string
+  message: string
+}
+
+export interface SpecialCasesSummary {
+  has_no_header_sheets: string[]
+  has_missing_values_sheets: Array<{
+    sheet_name: string
+    total_missing: number
+    affected_rows: number
+    empty_rows_count: number
+    columns: string[]
+  }>
+  is_multi_sheet: boolean
+  total_sheets: number
+  mergeable_sheet_groups: MergeableSheetGroup[]
+  multi_table_sheets: Array<{
+    sheet_name: string
+    tables_count: number
+    regions: string[]
+  }>
+}
+
 export interface WorkbookInspection {
   filename: string
   file_type: string
   total_sheets: number
   sheets: SheetInspection[]
+  mergeable_sheet_groups?: MergeableSheetGroup[]
+  special_cases_summary?: SpecialCasesSummary
 }
 
 export interface InteractiveUploadConfig {
@@ -101,6 +130,11 @@ export interface InteractiveUploadConfig {
   column_fills?: Record<string, any>
   drop_empty_rows?: boolean
   drop_any_missing_rows?: boolean
+  missing_choice?: "drop_rows" | "fill_zero" | "keep_raw" | "manual_fix" | "default"
+  multi_sheet_action?: "single" | "merge" | "split_all"
+  sheets_to_merge?: string[]
+  allow_no_header?: boolean
+  custom_column_names?: string[] | Record<string, string>
 }
 
 export interface Dataset {
@@ -183,6 +217,15 @@ export const DatasetsService = {
     const response = await axios.post<Dataset>(`${API_URL}/api/v1/datasets/${id}/clean`, {}, {
       headers: getAuthHeaders(),
     })
+    return response.data
+  },
+
+  async bulkDeleteDatasets(ids: string[]): Promise<{ message: string }> {
+    const response = await axios.post<{ message: string }>(
+      `${API_URL}/api/v1/datasets/bulk-delete`,
+      { ids },
+      { headers: getAuthHeaders() }
+    )
     return response.data
   },
 
