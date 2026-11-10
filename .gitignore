@@ -11,3 +11,6 @@ backend/uploads/
 *.pyc
 __pycache__/
 .pytest_cache/
+_archive_thong_tin_khong_nop/
+.agents/
+.claude/
